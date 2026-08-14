@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useAuth } from "./hooks/useAuth";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import SetupNotice from "./components/SetupNotice";
+import LandingPage from "./components/LandingPage";
 import AuthScreen from "./components/AuthScreen";
 import LedgerApp from "./LedgerApp";
 
@@ -14,6 +16,7 @@ export default function App() {
 
 function AuthGate() {
   const { user, loading, signIn, signUp, signOut } = useAuth();
+  const [view, setView] = useState("landing"); // "landing" | "signin" | "signup"
 
   if (loading) {
     return (
@@ -26,7 +29,22 @@ function AuthGate() {
   }
 
   if (!user) {
-    return <AuthScreen signIn={signIn} signUp={signUp} />;
+    if (view === "landing") {
+      return (
+        <LandingPage
+          onGetStarted={() => setView("signup")}
+          onSignIn={() => setView("signin")}
+        />
+      );
+    }
+    return (
+      <AuthScreen
+        signIn={signIn}
+        signUp={signUp}
+        initialMode={view}
+        onBack={() => setView("landing")}
+      />
+    );
   }
 
   return <LedgerApp user={user} signOut={signOut} />;

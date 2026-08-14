@@ -122,6 +122,25 @@ export const TRANSLATIONS = {
 
     // Language
     language: "Language",
+
+    // Landing page
+    landingCtaPrimary: "Get started — it's free",
+    landingCtaSecondary: "Sign in",
+    landingHeroTitle: "Track every dirham, without the spreadsheet.",
+    landingHeroSubtitle: "A clean, ledger-style money tracker with budgets, recurring bills, and trends built in — free to use, and your data stays in your own database.",
+    landingFeaturesEyebrow: "What's inside",
+    landingFeature1Title: "A real ledger",
+    landingFeature1Body: "Log income and expenses with categories, notes, and dates — edit or delete anytime.",
+    landingFeature2Title: "Monthly budgets",
+    landingFeature2Body: "Set a limit per category and see exactly how close you are before you overspend.",
+    landingFeature3Title: "Recurring entries",
+    landingFeature3Body: "Rent, subscriptions, salary — set it once and it logs itself every month.",
+    landingFeature4Title: "Trends at a glance",
+    landingFeature4Body: "A six-month view of income versus expenses, so patterns are easy to spot.",
+    landingPrivacyEyebrow: "Your data",
+    landingPrivacyTitle: "Private by default",
+    landingPrivacyBody: "Each account is protected by row-level security, so only you can see your entries. Export a full backup anytime as CSV or JSON.",
+    landingBackToHome: "Back",
   },
   fr: {
     appName: "Le Grand Livre",
@@ -215,6 +234,24 @@ export const TRANSLATIONS = {
     lastNMonths: "{n} derniers mois",
 
     language: "Langue",
+
+    landingCtaPrimary: "Commencer — c'est gratuit",
+    landingCtaSecondary: "Connexion",
+    landingHeroTitle: "Suivez chaque dirham, sans tableur.",
+    landingHeroSubtitle: "Un suivi financier sobre, façon registre, avec budgets, factures récurrentes et tendances intégrés — gratuit, et vos données restent dans votre propre base.",
+    landingFeaturesEyebrow: "Ce qu'il propose",
+    landingFeature1Title: "Un vrai registre",
+    landingFeature1Body: "Enregistrez revenus et dépenses avec catégories, notes et dates — modifiables à tout moment.",
+    landingFeature2Title: "Budgets mensuels",
+    landingFeature2Body: "Définissez une limite par catégorie et voyez où vous en êtes avant de dépasser.",
+    landingFeature3Title: "Écritures récurrentes",
+    landingFeature3Body: "Loyer, abonnements, salaire — configurez une fois, et c'est enregistré chaque mois.",
+    landingFeature4Title: "Tendances en un coup d'œil",
+    landingFeature4Body: "Une vue sur six mois des revenus et dépenses, pour repérer les tendances facilement.",
+    landingPrivacyEyebrow: "Vos données",
+    landingPrivacyTitle: "Privé par défaut",
+    landingPrivacyBody: "Chaque compte est protégé par une sécurité au niveau des lignes : vous seul voyez vos écritures. Exportez une sauvegarde complète à tout moment, en CSV ou JSON.",
+    landingBackToHome: "Retour",
   },
   ar: {
     appName: "الدفتر",
@@ -308,6 +345,24 @@ export const TRANSLATIONS = {
     lastNMonths: "آخر {n} أشهر",
 
     language: "اللغة",
+
+    landingCtaPrimary: "ابدأ الآن — مجانًا",
+    landingCtaSecondary: "تسجيل الدخول",
+    landingHeroTitle: "تتبّع كل درهم، دون جداول بيانات.",
+    landingHeroSubtitle: "متتبّع مالي بسيط على طراز الدفاتر، مزوّد بالميزانيات والفواتير المتكررة والاتجاهات — مجاني الاستخدام، وبياناتك تبقى في قاعدة بياناتك الخاصة.",
+    landingFeaturesEyebrow: "ما يقدّمه التطبيق",
+    landingFeature1Title: "دفتر حقيقي",
+    landingFeature1Body: "سجّل الدخل والمصاريف مع الفئات والملاحظات والتواريخ — عدّل أو احذف في أي وقت.",
+    landingFeature2Title: "ميزانيات شهرية",
+    landingFeature2Body: "حدّد حدًا لكل فئة وشاهد بدقة مدى اقترابك منه قبل تجاوز ميزانيتك.",
+    landingFeature3Title: "قيود متكررة",
+    landingFeature3Body: "الإيجار، الاشتراكات، الراتب — أعدّها مرة واحدة وستُسجَّل تلقائيًا كل شهر.",
+    landingFeature4Title: "الاتجاهات بلمحة",
+    landingFeature4Body: "نظرة على ستة أشهر من الدخل مقابل المصاريف، لتسهيل رصد الأنماط.",
+    landingPrivacyEyebrow: "بياناتك",
+    landingPrivacyTitle: "خاصة بشكل افتراضي",
+    landingPrivacyBody: "كل حساب محمي بأمان على مستوى الصفوف، بحيث لا يرى قيودك سواك. صدّر نسخة احتياطية كاملة في أي وقت بصيغة CSV أو JSON.",
+    landingBackToHome: "رجوع",
   },
 };
 

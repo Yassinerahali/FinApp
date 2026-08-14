@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 import LanguageSwitcher from "./LanguageSwitcher";
 
-export default function AuthScreen({ signIn, signUp }) {
+export default function AuthScreen({ signIn, signUp, initialMode = "signin", onBack }) {
   const { t } = useLanguage();
-  const [mode, setMode] = useState("signin");
+  const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -43,6 +43,14 @@ export default function AuthScreen({ signIn, signUp }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-5">
       <div className="w-full max-w-sm">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="mb-4 font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-ink)"
+          >
+            ← {t("landingBackToHome")}
+          </button>
+        )}
         <div className="flex justify-center mb-4">
           <LanguageSwitcher />
         </div>
