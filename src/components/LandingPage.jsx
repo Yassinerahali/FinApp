@@ -136,8 +136,9 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
         </section>
       </main>
 
-      <footer className="max-w-5xl mx-auto px-5 sm:px-8 py-8 text-xs text-(--color-ink-soft)">
-        {t("appName")} — {t("tagline")}
+      <footer className="max-w-5xl mx-auto px-5 sm:px-8 py-8 flex flex-wrap items-center justify-between gap-2 text-xs text-(--color-ink-soft)">
+        <span>{t("appName")} — {t("tagline")}</span>
+        <span>{t("madeBy", { name: "Choumchoum" })}</span>
       </footer>
     </div>
   );

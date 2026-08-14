@@ -141,6 +141,7 @@ export const TRANSLATIONS = {
     landingPrivacyTitle: "Private by default",
     landingPrivacyBody: "Each account is protected by row-level security, so only you can see your entries. Export a full backup anytime as CSV or JSON.",
     landingBackToHome: "Back",
+    madeBy: "Made by {name}",
   },
   fr: {
     appName: "Le Grand Livre",
@@ -252,6 +253,7 @@ export const TRANSLATIONS = {
     landingPrivacyTitle: "Privé par défaut",
     landingPrivacyBody: "Chaque compte est protégé par une sécurité au niveau des lignes : vous seul voyez vos écritures. Exportez une sauvegarde complète à tout moment, en CSV ou JSON.",
     landingBackToHome: "Retour",
+    madeBy: "Créé par {name}",
   },
   ar: {
     appName: "الدفتر",
@@ -363,6 +365,7 @@ export const TRANSLATIONS = {
     landingPrivacyTitle: "خاصة بشكل افتراضي",
     landingPrivacyBody: "كل حساب محمي بأمان على مستوى الصفوف، بحيث لا يرى قيودك سواك. صدّر نسخة احتياطية كاملة في أي وقت بصيغة CSV أو JSON.",
     landingBackToHome: "رجوع",
+    madeBy: "صُنع بواسطة {name}",
   },
 };
 
