@@ -4,6 +4,8 @@ import { useBudgets } from "./hooks/useBudgets";
 import { useRecurring } from "./hooks/useRecurring";
 import { useAccounts } from "./hooks/useAccounts";
 import { useSavingsGoals } from "./hooks/useSavingsGoals";
+import { useCustomCategories } from "./hooks/useCustomCategories";
+import { DEFAULT_CATEGORIES } from "./lib/categories";
 import { exportTransactionsCSV, exportFullBackup, readBackupFile } from "./lib/export";
 import { useLanguage } from "./lib/i18n/LanguageContext";
 import EntryForm from "./components/EntryForm";
@@ -17,6 +19,7 @@ import TrendsChart from "./components/TrendsChart";
 import AccountsPanel from "./components/AccountsPanel";
 import NetWorthSummary from "./components/NetWorthSummary";
 import GoalsPanel from "./components/GoalsPanel";
+import CategoriesPanel from "./components/CategoriesPanel";
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import ThemeSwitcher from "./components/ThemeSwitcher";
 
@@ -27,13 +30,14 @@ function currentMonthKey() {
 
 const EMPTY_FILTERS = { search: "", type: "all", category: "all", from: "", to: "", accountId: "all" };
 
-const TAB_IDS = ["ledger", "budgets", "recurring", "accounts", "goals", "trends"];
+const TAB_IDS = ["ledger", "budgets", "recurring", "accounts", "goals", "categories", "trends"];
 const TAB_KEYS = {
   ledger: "tabLedger",
   budgets: "tabBudgets",
   recurring: "tabRecurring",
   accounts: "tabAccounts",
   goals: "tabGoals",
+  categories: "tabCategories",
   trends: "tabTrends",
 };
 
@@ -58,6 +62,15 @@ export default function LedgerApp({ user, signOut }) {
     t("defaultAccountName")
   );
   const { goals, addGoal, contribute, deleteGoal } = useSavingsGoals(user.id);
+  const { categories: customCategories, addCategory, deleteCategory } = useCustomCategories(user.id);
+
+  const allCategories = useMemo(
+    () => [
+      ...DEFAULT_CATEGORIES,
+      ...customCategories.map((c) => ({ id: c.name, type: c.type })),
+    ],
+    [customCategories]
+  );
 
   const accountsById = useMemo(
     () => Object.fromEntries(accounts.map((a) => [a.id, a.name])),
@@ -224,6 +237,7 @@ export default function LedgerApp({ user, signOut }) {
                 onCancelEdit={() => setEditingId(null)}
                 accounts={accounts}
                 defaultAccountId={accounts[0]?.id}
+                categories={allCategories}
               />
               <BalanceSummary income={income} expense={expense} />
               <CategoryBreakdown transactions={monthTransactions} />
@@ -238,6 +252,7 @@ export default function LedgerApp({ user, signOut }) {
                 setFilters={setFilters}
                 accounts={accounts}
                 showAccountFilter={accounts.length > 1}
+                categories={allCategories}
               />
               <LedgerTable
                 transactions={filteredTransactions}
@@ -256,13 +271,20 @@ export default function LedgerApp({ user, signOut }) {
               budgets={budgets}
               setBudget={setBudget}
               monthTransactions={monthTransactions}
+              categories={allCategories}
             />
           </div>
         )}
 
         {tab === "recurring" && (
           <div className="max-w-xl">
-            <RecurringPanel rules={rules} addRule={addRule} updateRule={updateRule} deleteRule={deleteRule} />
+            <RecurringPanel
+              rules={rules}
+              addRule={addRule}
+              updateRule={updateRule}
+              deleteRule={deleteRule}
+              categories={allCategories}
+            />
           </div>
         )}
 
@@ -282,6 +304,16 @@ export default function LedgerApp({ user, signOut }) {
         {tab === "goals" && (
           <div className="max-w-xl">
             <GoalsPanel goals={goals} addGoal={addGoal} contribute={contribute} deleteGoal={deleteGoal} />
+          </div>
+        )}
+
+        {tab === "categories" && (
+          <div className="max-w-xl">
+            <CategoriesPanel
+              categories={customCategories}
+              addCategory={addCategory}
+              deleteCategory={deleteCategory}
+            />
           </div>
         )}
 

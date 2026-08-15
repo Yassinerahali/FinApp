@@ -1,7 +1,6 @@
 import { useLanguage } from "../lib/i18n/LanguageContext";
-import { DEFAULT_CATEGORIES } from "../lib/categories";
 
-export default function TransactionFilters({ filters, setFilters, accounts, showAccountFilter }) {
+export default function TransactionFilters({ filters, setFilters, accounts, showAccountFilter, categories }) {
   const { t, catLabel } = useLanguage();
 
   function update(patch) {
@@ -58,7 +57,7 @@ export default function TransactionFilters({ filters, setFilters, accounts, show
             className="w-full border-b border-(--color-rule) bg-transparent py-1 text-xs outline-none"
           >
             <option value="all">{t("filterAllCategories")}</option>
-            {DEFAULT_CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {catLabel(c.id)}
               </option>

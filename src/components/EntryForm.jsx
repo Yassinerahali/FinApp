@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
-import { DEFAULT_CATEGORIES } from "../lib/categories";
 import { todayISO } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 
 const EMPTY = { type: "expense", amount: "", category: "food", date: todayISO(), note: "" };
 
-export default function EntryForm({ onAdd, editing, onSave, onCancelEdit, accounts = [], defaultAccountId }) {
+export default function EntryForm({
+  onAdd,
+  editing,
+  onSave,
+  onCancelEdit,
+  accounts = [],
+  defaultAccountId,
+  categories: allCategories,
+}) {
   const { t, catLabel } = useLanguage();
   const [type, setType] = useState(EMPTY.type);
   const [amount, setAmount] = useState(EMPTY.amount);
@@ -37,12 +44,12 @@ export default function EntryForm({ onAdd, editing, onSave, onCancelEdit, accoun
     }
   }, [editing, defaultAccountId]);
 
-  const categories = DEFAULT_CATEGORIES.filter((c) => c.type === type);
+  const categories = allCategories.filter((c) => c.type === type);
 
   function handleTypeChange(nextType) {
     setType(nextType);
-    if (!isEditing || DEFAULT_CATEGORIES.find((c) => c.id === category)?.type !== nextType) {
-      const first = DEFAULT_CATEGORIES.find((c) => c.type === nextType);
+    if (!isEditing || allCategories.find((c) => c.id === category)?.type !== nextType) {
+      const first = allCategories.find((c) => c.type === nextType);
       if (first) setCategory(first.id);
     }
   }

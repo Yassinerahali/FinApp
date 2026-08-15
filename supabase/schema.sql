@@ -56,11 +56,24 @@ create table if not exists savings_goals (
   created_at timestamptz not null default now()
 );
 
+-- User-defined categories (e.g. "Loans", "Debts") alongside the built-in
+-- ones. A custom category's name is stored directly on
+-- transactions/budgets/recurring_rules (plain text columns, not foreign
+-- keys), so deleting one here never relabels past entries.
+create table if not exists categories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  type text not null check (type in ('income', 'expense')),
+  created_at timestamptz not null default now()
+);
+
 alter table accounts enable row level security;
 alter table transactions enable row level security;
 alter table budgets enable row level security;
 alter table recurring_rules enable row level security;
 alter table savings_goals enable row level security;
+alter table categories enable row level security;
 
 create policy "Users manage their own accounts"
   on accounts for all
@@ -84,6 +97,11 @@ create policy "Users manage their own recurring rules"
 
 create policy "Users manage their own savings goals"
   on savings_goals for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users manage their own categories"
+  on categories for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 

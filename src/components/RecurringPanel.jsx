@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { DEFAULT_CATEGORIES } from "../lib/categories";
 import { formatAmount, todayISO } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 
 const EMPTY = { type: "expense", amount: "", category: "housing", dayOfMonth: "1", note: "" };
 
-export default function RecurringPanel({ rules, addRule, updateRule, deleteRule }) {
+export default function RecurringPanel({ rules, addRule, updateRule, deleteRule, categories: allCategories }) {
   const { t, catLabel } = useLanguage();
   const [editingId, setEditingId] = useState(null);
   const [type, setType] = useState(EMPTY.type);
@@ -16,7 +15,7 @@ export default function RecurringPanel({ rules, addRule, updateRule, deleteRule 
   const [error, setError] = useState("");
 
   const isEditing = Boolean(editingId);
-  const categories = DEFAULT_CATEGORIES.filter((c) => c.type === type);
+  const categories = allCategories.filter((c) => c.type === type);
 
   useEffect(() => {
     if (!editingId) return;
@@ -46,9 +45,9 @@ export default function RecurringPanel({ rules, addRule, updateRule, deleteRule 
 
   function handleTypeChange(nextType) {
     setType(nextType);
-    const stillValid = DEFAULT_CATEGORIES.find((c) => c.id === category)?.type === nextType;
+    const stillValid = allCategories.find((c) => c.id === category)?.type === nextType;
     if (!stillValid) {
-      const first = DEFAULT_CATEGORIES.find((c) => c.type === nextType);
+      const first = allCategories.find((c) => c.type === nextType);
       if (first) setCategory(first.id);
     }
   }

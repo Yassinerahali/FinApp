@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { DEFAULT_CATEGORIES } from "../lib/categories";
 import { formatAmount } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 
-const EXPENSE_CATEGORIES = DEFAULT_CATEGORIES.filter((c) => c.type === "expense");
-
-export default function BudgetPanel({ budgets, setBudget, monthTransactions }) {
+export default function BudgetPanel({ budgets, setBudget, monthTransactions, categories }) {
   const { t, catLabel } = useLanguage();
+  const expenseCategories = categories.filter((c) => c.type === "expense");
   const spentByCategory = {};
   for (const tx of monthTransactions) {
     if (tx.type !== "expense") continue;
@@ -23,7 +21,7 @@ export default function BudgetPanel({ budgets, setBudget, monthTransactions }) {
       </div>
 
       <ul className="space-y-5">
-        {EXPENSE_CATEGORIES.map((c) => (
+        {expenseCategories.map((c) => (
           <BudgetRow
             key={c.id}
             name={catLabel(c.id)}
