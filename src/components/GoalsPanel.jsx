@@ -24,11 +24,16 @@ export default function GoalsPanel({ goals, addGoal, contribute, deleteGoal }) {
       name: name.trim(),
       target_amount: numeric,
       target_date: targetDate || null,
+    }).then(({ error: addError }) => {
+      if (addError) {
+        setError(addError.message || t("goalErrorGeneric"));
+        return;
+      }
+      setName("");
+      setTargetAmount("");
+      setTargetDate("");
+      setError("");
     });
-    setName("");
-    setTargetAmount("");
-    setTargetDate("");
-    setError("");
   }
 
   return (

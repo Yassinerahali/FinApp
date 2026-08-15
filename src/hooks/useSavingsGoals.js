@@ -40,6 +40,7 @@ export function useSavingsGoals(userId) {
       if (!error && data) {
         setGoals((prev) => [...prev, data]);
       }
+      return { data, error };
     },
     [userId]
   );

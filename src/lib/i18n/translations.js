@@ -74,6 +74,7 @@ export const TRANSLATIONS = {
     allAccounts: "All accounts",
     account: "Account",
     accountDeleteConfirm: "Delete this account? Its transactions will stay, unassigned.",
+    accountErrorGeneric: "Couldn't add that account. Please try again.",
     noAccountsYet: "No accounts yet.",
     defaultAccountName: "Main",
 
@@ -104,6 +105,7 @@ export const TRANSLATIONS = {
     noMatchingEntries: "No entries match your filters.",
     goalErrorName: "Give the goal a name.",
     goalErrorAmount: "Enter a target amount greater than 0.",
+    goalErrorGeneric: "Couldn't add that goal. Please try again.",
 
     // Entry form
     newEntry: "New entry",
@@ -241,6 +243,7 @@ export const TRANSLATIONS = {
     allAccounts: "Tous les comptes",
     account: "Compte",
     accountDeleteConfirm: "Supprimer ce compte ? Ses transactions resteront, non associées.",
+    accountErrorGeneric: "Impossible d'ajouter ce compte. Veuillez réessayer.",
     noAccountsYet: "Aucun compte pour l'instant.",
     defaultAccountName: "Principal",
 
@@ -271,6 +274,7 @@ export const TRANSLATIONS = {
     noMatchingEntries: "Aucune écriture ne correspond à vos filtres.",
     goalErrorName: "Donnez un nom à l'objectif.",
     goalErrorAmount: "Entrez un montant cible supérieur à 0.",
+    goalErrorGeneric: "Impossible d'ajouter cet objectif. Veuillez réessayer.",
 
     newEntry: "Nouvelle écriture",
     editEntry: "Modifier l'écriture",
@@ -399,6 +403,7 @@ export const TRANSLATIONS = {
     allAccounts: "جميع الحسابات",
     account: "الحساب",
     accountDeleteConfirm: "حذف هذا الحساب؟ ستبقى معاملاته دون تصنيف.",
+    accountErrorGeneric: "تعذّرت إضافة هذا الحساب. حاول مرة أخرى.",
     noAccountsYet: "لا توجد حسابات بعد.",
     defaultAccountName: "الرئيسي",
 
@@ -429,6 +434,7 @@ export const TRANSLATIONS = {
     noMatchingEntries: "لا توجد قيود مطابقة لفلاترك.",
     goalErrorName: "أدخل اسمًا للهدف.",
     goalErrorAmount: "أدخل مبلغًا مستهدفًا أكبر من 0.",
+    goalErrorGeneric: "تعذّرت إضافة هذا الهدف. حاول مرة أخرى.",
 
     newEntry: "قيد جديد",
     editEntry: "تعديل القيد",

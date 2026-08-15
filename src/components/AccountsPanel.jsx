@@ -15,12 +15,18 @@ export default function AccountsPanel({ accounts, addAccount, renameAccount, del
   const [kind, setKind] = useState("cash");
   const [renamingId, setRenamingId] = useState(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    await addAccount(trimmed, kind);
+    setError("");
+    const { error: addError } = await addAccount(trimmed, kind);
+    if (addError) {
+      setError(addError.message || t("accountErrorGeneric"));
+      return;
+    }
     setName("");
     setKind("cash");
   }
@@ -79,6 +85,7 @@ export default function AccountsPanel({ accounts, addAccount, renameAccount, del
         >
           {t("addAccount")}
         </button>
+        {error && <p className="mt-3 text-sm text-(--color-debit) font-medium">{error}</p>}
       </form>
 
       <div className="border border-(--color-rule) bg-(--color-paper)">
