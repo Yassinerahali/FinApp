@@ -81,11 +81,18 @@ function BudgetRow({ name, limit, spent, onChange, t }) {
           </button>
         )}
       </div>
-      <div className="h-1.5 bg-(--color-paper-bar) overflow-hidden">
-        <div
-          className={`h-full transition-all ${over ? "bg-(--color-debit)" : "bg-(--color-brass)"}`}
-          style={{ width: `${hasLimit ? Math.max(pct, 2) : 0}%` }}
-        />
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-1.5 bg-(--color-paper-bar) overflow-hidden">
+          <div
+            className={`h-full transition-all ${over ? "bg-(--color-debit)" : "bg-(--color-brass)"}`}
+            style={{ width: `${hasLimit ? Math.max(pct, 2) : 0}%` }}
+          />
+        </div>
+        {over && (
+          <span role="img" aria-label={t("overBudget")} className="text-sm leading-none shrink-0">
+            😔
+          </span>
+        )}
       </div>
       {over && (
         <p className="text-xs text-(--color-debit) mt-1">
