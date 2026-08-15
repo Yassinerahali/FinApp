@@ -1,23 +1,56 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DEFAULT_CATEGORIES } from "../lib/categories";
 import { formatAmount, todayISO } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 
-export default function RecurringPanel({ rules, addRule, deleteRule }) {
+const EMPTY = { type: "expense", amount: "", category: "housing", dayOfMonth: "1", note: "" };
+
+export default function RecurringPanel({ rules, addRule, updateRule, deleteRule }) {
   const { t, catLabel } = useLanguage();
-  const [type, setType] = useState("expense");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("housing");
-  const [dayOfMonth, setDayOfMonth] = useState("1");
-  const [note, setNote] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [type, setType] = useState(EMPTY.type);
+  const [amount, setAmount] = useState(EMPTY.amount);
+  const [category, setCategory] = useState(EMPTY.category);
+  const [dayOfMonth, setDayOfMonth] = useState(EMPTY.dayOfMonth);
+  const [note, setNote] = useState(EMPTY.note);
   const [error, setError] = useState("");
 
+  const isEditing = Boolean(editingId);
   const categories = DEFAULT_CATEGORIES.filter((c) => c.type === type);
+
+  useEffect(() => {
+    if (!editingId) return;
+    const rule = rules.find((r) => r.id === editingId);
+    if (!rule) {
+      setEditingId(null);
+      return;
+    }
+    setType(rule.type);
+    setAmount(String(rule.amount));
+    setCategory(rule.category);
+    setDayOfMonth(String(rule.dayOfMonth));
+    setNote(rule.note || "");
+    setError("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId]);
+
+  function resetForm() {
+    setEditingId(null);
+    setType(EMPTY.type);
+    setAmount(EMPTY.amount);
+    setCategory(EMPTY.category);
+    setDayOfMonth(EMPTY.dayOfMonth);
+    setNote(EMPTY.note);
+    setError("");
+  }
 
   function handleTypeChange(nextType) {
     setType(nextType);
-    const first = DEFAULT_CATEGORIES.find((c) => c.type === nextType);
-    if (first) setCategory(first.id);
+    const stillValid = DEFAULT_CATEGORIES.find((c) => c.id === category)?.type === nextType;
+    if (!stillValid) {
+      const first = DEFAULT_CATEGORIES.find((c) => c.type === nextType);
+      if (first) setCategory(first.id);
+    }
   }
 
   function handleSubmit(e) {
@@ -32,24 +65,35 @@ export default function RecurringPanel({ rules, addRule, deleteRule }) {
       setError(t("errorDay"));
       return;
     }
-    addRule({
-      type,
-      amount: numericAmount,
-      category,
-      dayOfMonth: numericDay,
-      note: note.trim(),
-      startDate: todayISO(),
-    });
-    setAmount("");
-    setNote("");
-    setError("");
+
+    if (isEditing) {
+      updateRule(editingId, {
+        type,
+        amount: numericAmount,
+        category,
+        dayOfMonth: numericDay,
+        note: note.trim(),
+      });
+    } else {
+      addRule({
+        type,
+        amount: numericAmount,
+        category,
+        dayOfMonth: numericDay,
+        note: note.trim(),
+        startDate: todayISO(),
+      });
+    }
+    resetForm();
   }
 
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6">
         <div className="flex items-baseline justify-between mb-5">
-          <h2 className="font-serif text-lg font-semibold tracking-tight">{t("newRecurringEntry")}</h2>
+          <h2 className="font-serif text-lg font-semibold tracking-tight">
+            {isEditing ? t("editRecurringEntry") : t("newRecurringEntry")}
+          </h2>
           <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft)">
             {t("monthly")}
           </span>
@@ -152,13 +196,24 @@ export default function RecurringPanel({ rules, addRule, deleteRule }) {
 
         {error && <p className="mt-4 text-sm text-(--color-debit) font-medium">{error}</p>}
 
-        <button
-          type="submit"
-          className="mt-6 w-full bg-(--color-ink) text-(--color-paper) py-3 font-mono text-sm uppercase tracking-widest hover:bg-(--color-brass-dark) transition-colors"
-        >
-          {t("addRecurringEntry")}
-        </button>
-        <p className="mt-3 text-xs text-(--color-ink-soft)">{t("recurringHint")}</p>
+        <div className="mt-6 flex gap-2">
+          {isEditing && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="flex-1 border border-(--color-rule) text-(--color-ink-soft) py-3 font-mono text-sm uppercase tracking-widest hover:border-(--color-ink) hover:text-(--color-ink) transition-colors"
+            >
+              {t("cancel")}
+            </button>
+          )}
+          <button
+            type="submit"
+            className="flex-1 bg-(--color-ink) text-(--color-paper) py-3 font-mono text-sm uppercase tracking-widest hover:bg-(--color-brass-dark) transition-colors"
+          >
+            {isEditing ? t("saveChanges") : t("addRecurringEntry")}
+          </button>
+        </div>
+        {!isEditing && <p className="mt-3 text-xs text-(--color-ink-soft)">{t("recurringHint")}</p>}
       </form>
 
       <div className="border border-(--color-rule) bg-(--color-paper)">
@@ -187,13 +242,22 @@ export default function RecurringPanel({ rules, addRule, deleteRule }) {
                   >
                     {r.type === "income" ? "+" : "−"}{formatAmount(r.amount)}
                   </span>
-                  <button
-                    onClick={() => deleteRule(r.id)}
-                    aria-label={t("deleteRecurringAria")}
-                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-(--color-ink-soft) hover:text-(--color-debit) text-xs transition-opacity"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setEditingId(r.id)}
+                      aria-label={t("editRecurringAria")}
+                      className="text-(--color-ink-soft) hover:text-(--color-brass-dark) text-xs px-1"
+                    >
+                      {t("edit")}
+                    </button>
+                    <button
+                      onClick={() => deleteRule(r.id)}
+                      aria-label={t("deleteRecurringAria")}
+                      className="text-(--color-ink-soft) hover:text-(--color-debit) text-xs px-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}

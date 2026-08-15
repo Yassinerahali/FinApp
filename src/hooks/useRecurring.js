@@ -7,6 +7,8 @@ export function useRecurring(userId, addTransaction) {
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const hasRunCatchUp = useRef(false);
+  const rulesRef = useRef([]);
+  rulesRef.current = rules;
 
   useEffect(() => {
     if (!userId) {
@@ -77,6 +79,21 @@ export function useRecurring(userId, addTransaction) {
     [userId]
   );
 
+  const updateRule = useCallback(async (id, patch) => {
+    const existing = rulesRef.current.find((r) => r.id === id);
+    if (!existing) return;
+    const merged = { ...existing, ...patch };
+    const { data, error } = await supabase
+      .from("recurring_rules")
+      .update(ruleToDb(merged))
+      .eq("id", id)
+      .select()
+      .single();
+    if (!error && data) {
+      setRules((prev) => prev.map((r) => (r.id === id ? ruleFromDb(data) : r)));
+    }
+  }, []);
+
   const deleteRule = useCallback(async (id) => {
     const { error } = await supabase.from("recurring_rules").delete().eq("id", id);
     if (!error) {
@@ -99,5 +116,5 @@ export function useRecurring(userId, addTransaction) {
     [userId]
   );
 
-  return { rules, loading, addRule, deleteRule, replaceAllRules };
+  return { rules, loading, addRule, updateRule, deleteRule, replaceAllRules };
 }

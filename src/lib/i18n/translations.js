@@ -31,6 +31,22 @@ export const TRANSLATIONS = {
     createAccount: "Create account",
     pleaseWait: "Please wait…",
     authMissingFields: "Enter both an email and a password.",
+    authMissingEmail: "Enter your email address.",
+    somethingWentWrong: "Something went wrong.",
+    forgotPassword: "Forgot password?",
+    resetInstructions: "Enter your email and we'll send you a link to reset your password.",
+    sendResetLink: "Send reset link",
+    resetLinkSent: "Check your email for a link to reset your password.",
+    backToSignIn: "Back to sign in",
+    setNewPassword: "Set a new password",
+    newPassword: "New password",
+    confirmPassword: "Confirm password",
+    passwordTooShort: "Password must be at least 6 characters.",
+    passwordsDontMatch: "Passwords don't match.",
+    passwordUpdated: "Password updated. You can close this and sign in.",
+    updatePassword: "Update password",
+    themeLight: "Light",
+    themeDark: "Dark",
     authShortPassword: "Password must be at least 6 characters.",
     authSignupNotice: "Account created. Check your email if confirmation is required, then sign in.",
 
@@ -63,6 +79,10 @@ export const TRANSLATIONS = {
 
     // Accounts
     accountsTitle: "Your accounts",
+    netWorth: "Net worth",
+    allTime: "All time",
+    unassigned: "Unassigned",
+    total: "Total",
     accountsSubtitle: "Wallets & banks",
     accountNamePlaceholder: "e.g. Cash, CIH Bank, Visa",
     accountKindCash: "Cash",
@@ -154,6 +174,7 @@ export const TRANSLATIONS = {
 
     // Recurring
     newRecurringEntry: "New recurring entry",
+    editRecurringEntry: "Edit recurring entry",
     monthly: "Monthly",
     dayOfMonth: "Day of month",
     label: "Label",
@@ -164,6 +185,7 @@ export const TRANSLATIONS = {
     noRecurringEntries: "No recurring entries yet.",
     dayOfMonthLabel: "day {day} of each month",
     deleteRecurringAria: "Delete recurring entry",
+    editRecurringAria: "Edit recurring entry",
 
     // Trends
     lastNMonths: "Last {n} months",
@@ -202,6 +224,22 @@ export const TRANSLATIONS = {
     createAccount: "Créer un compte",
     pleaseWait: "Veuillez patienter…",
     authMissingFields: "Renseignez un e-mail et un mot de passe.",
+    authMissingEmail: "Renseignez votre adresse e-mail.",
+    somethingWentWrong: "Une erreur est survenue.",
+    forgotPassword: "Mot de passe oublié ?",
+    resetInstructions: "Entrez votre e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+    sendResetLink: "Envoyer le lien",
+    resetLinkSent: "Consultez votre e-mail pour le lien de réinitialisation.",
+    backToSignIn: "Retour à la connexion",
+    setNewPassword: "Définir un nouveau mot de passe",
+    newPassword: "Nouveau mot de passe",
+    confirmPassword: "Confirmer le mot de passe",
+    passwordTooShort: "Le mot de passe doit contenir au moins 6 caractères.",
+    passwordsDontMatch: "Les mots de passe ne correspondent pas.",
+    passwordUpdated: "Mot de passe mis à jour. Vous pouvez fermer cette page et vous connecter.",
+    updatePassword: "Mettre à jour le mot de passe",
+    themeLight: "Clair",
+    themeDark: "Sombre",
     authShortPassword: "Le mot de passe doit contenir au moins 6 caractères.",
     authSignupNotice: "Compte créé. Vérifiez votre e-mail si une confirmation est requise, puis connectez-vous.",
 
@@ -232,6 +270,10 @@ export const TRANSLATIONS = {
 
     // Comptes
     accountsTitle: "Vos comptes",
+    netWorth: "Valeur nette",
+    allTime: "Depuis toujours",
+    unassigned: "Non attribué",
+    total: "Total",
     accountsSubtitle: "Portefeuilles et banques",
     accountNamePlaceholder: "ex. Espèces, CIH Banque, Visa",
     accountKindCash: "Espèces",
@@ -317,6 +359,7 @@ export const TRANSLATIONS = {
     overBudget: "dépassement",
 
     newRecurringEntry: "Nouvelle écriture récurrente",
+    editRecurringEntry: "Modifier l'écriture récurrente",
     monthly: "Mensuel",
     dayOfMonth: "Jour du mois",
     label: "Libellé",
@@ -327,6 +370,7 @@ export const TRANSLATIONS = {
     noRecurringEntries: "Aucune écriture récurrente pour l'instant.",
     dayOfMonthLabel: "le {day} de chaque mois",
     deleteRecurringAria: "Supprimer l'écriture récurrente",
+    editRecurringAria: "Modifier l'écriture récurrente",
 
     lastNMonths: "{n} derniers mois",
 
@@ -362,6 +406,22 @@ export const TRANSLATIONS = {
     createAccount: "إنشاء حساب",
     pleaseWait: "يرجى الانتظار…",
     authMissingFields: "أدخل البريد الإلكتروني وكلمة المرور.",
+    authMissingEmail: "أدخل عنوان بريدك الإلكتروني.",
+    somethingWentWrong: "حدث خطأ ما.",
+    forgotPassword: "نسيت كلمة المرور؟",
+    resetInstructions: "أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة تعيين كلمة المرور.",
+    sendResetLink: "إرسال رابط إعادة التعيين",
+    resetLinkSent: "تحقق من بريدك الإلكتروني للحصول على رابط إعادة تعيين كلمة المرور.",
+    backToSignIn: "العودة لتسجيل الدخول",
+    setNewPassword: "تعيين كلمة مرور جديدة",
+    newPassword: "كلمة المرور الجديدة",
+    confirmPassword: "تأكيد كلمة المرور",
+    passwordTooShort: "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.",
+    passwordsDontMatch: "كلمتا المرور غير متطابقتين.",
+    passwordUpdated: "تم تحديث كلمة المرور. يمكنك إغلاق هذه الصفحة وتسجيل الدخول.",
+    updatePassword: "تحديث كلمة المرور",
+    themeLight: "فاتح",
+    themeDark: "داكن",
     authShortPassword: "يجب ألا تقل كلمة المرور عن 6 أحرف.",
     authSignupNotice: "تم إنشاء الحساب. تحقق من بريدك الإلكتروني إذا لزم التأكيد، ثم سجّل الدخول.",
 
@@ -392,6 +452,10 @@ export const TRANSLATIONS = {
 
     // الحسابات
     accountsTitle: "حساباتك",
+    netWorth: "صافي الثروة",
+    allTime: "منذ البداية",
+    unassigned: "غير مخصص",
+    total: "الإجمالي",
     accountsSubtitle: "المحافظ والبنوك",
     accountNamePlaceholder: "مثال: نقدي، بنك CIH، فيزا",
     accountKindCash: "نقدي",
@@ -477,6 +541,7 @@ export const TRANSLATIONS = {
     overBudget: "تجاوز الميزانية",
 
     newRecurringEntry: "قيد متكرر جديد",
+    editRecurringEntry: "تعديل القيد المتكرر",
     monthly: "شهري",
     dayOfMonth: "يوم الشهر",
     label: "التسمية",
@@ -487,6 +552,7 @@ export const TRANSLATIONS = {
     noRecurringEntries: "لا توجد قيود متكررة بعد.",
     dayOfMonthLabel: "اليوم {day} من كل شهر",
     deleteRecurringAria: "حذف القيد المتكرر",
+    editRecurringAria: "تعديل القيد المتكرر",
 
     lastNMonths: "آخر {n} أشهر",
 

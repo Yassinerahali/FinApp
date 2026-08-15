@@ -15,8 +15,10 @@ import BudgetPanel from "./components/BudgetPanel";
 import RecurringPanel from "./components/RecurringPanel";
 import TrendsChart from "./components/TrendsChart";
 import AccountsPanel from "./components/AccountsPanel";
+import NetWorthSummary from "./components/NetWorthSummary";
 import GoalsPanel from "./components/GoalsPanel";
 import LanguageSwitcher from "./components/LanguageSwitcher";
+import ThemeSwitcher from "./components/ThemeSwitcher";
 
 function currentMonthKey() {
   const d = new Date();
@@ -50,7 +52,7 @@ export default function LedgerApp({ user, signOut }) {
     replaceAllTransactions,
   } = useTransactions(user.id);
   const { budgets, setBudget, replaceAllBudgets } = useBudgets(user.id);
-  const { rules, addRule, deleteRule, replaceAllRules } = useRecurring(user.id, addTransaction);
+  const { rules, addRule, updateRule, deleteRule, replaceAllRules } = useRecurring(user.id, addTransaction);
   const { accounts, addAccount, renameAccount, deleteAccount } = useAccounts(
     user.id,
     t("defaultAccountName")
@@ -186,6 +188,7 @@ export default function LedgerApp({ user, signOut }) {
               {t("signOut")}
             </button>
             <LanguageSwitcher />
+            <ThemeSwitcher />
           </div>
         </div>
         {restoreError && (
@@ -259,12 +262,13 @@ export default function LedgerApp({ user, signOut }) {
 
         {tab === "recurring" && (
           <div className="max-w-xl">
-            <RecurringPanel rules={rules} addRule={addRule} deleteRule={deleteRule} />
+            <RecurringPanel rules={rules} addRule={addRule} updateRule={updateRule} deleteRule={deleteRule} />
           </div>
         )}
 
         {tab === "accounts" && (
-          <div className="max-w-xl">
+          <div className="max-w-xl space-y-6">
+            <NetWorthSummary transactions={transactions} accounts={accounts} />
             <AccountsPanel
               accounts={accounts}
               addAccount={addAccount}

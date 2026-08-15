@@ -21,6 +21,22 @@ html, body {
   background-color: var(--color-paper);
 }
 
+/* Dark mode: same semantic variable names, inverted values. Since every
+   component references colors via var(--color-x) rather than hard-coded
+   hex, this single block re-themes the whole app with no per-component
+   changes needed. */
+[data-theme="dark"] {
+  --color-paper: #14181A;
+  --color-paper-bar: #1C2320;
+  --color-ink: #ECEAE2;
+  --color-ink-soft: #9BA69C;
+  --color-brass: #D4A555;
+  --color-brass-dark: #E8C179;
+  --color-credit: #4FAE72;
+  --color-debit: #E0604A;
+  --color-rule: #333F39;
+}
+
 body {
   font-family: var(--font-sans);
   color: var(--color-ink);
@@ -32,6 +48,7 @@ body {
     var(--color-paper-bar) 68px
   );
   background-attachment: local;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .tabular {

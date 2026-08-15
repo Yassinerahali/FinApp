@@ -1,5 +1,6 @@
 import { useLanguage } from "../lib/i18n/LanguageContext";
 import LanguageSwitcher from "./LanguageSwitcher";
+import ThemeSwitcher from "./ThemeSwitcher";
 
 export default function SetupNotice() {
   const { t } = useLanguage();
@@ -7,8 +8,9 @@ export default function SetupNotice() {
   return (
     <div className="min-h-screen flex items-center justify-center px-5">
       <div className="w-full max-w-lg">
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center gap-3 mb-4">
           <LanguageSwitcher />
+          <ThemeSwitcher />
         </div>
         <div className="border border-(--color-rule) bg-(--color-paper) p-6 sm:p-8">
           <h1 className="font-serif text-2xl font-bold tracking-tight mb-1">{t("appName")}</h1>

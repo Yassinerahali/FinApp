@@ -1,6 +1,7 @@
 import { useLanguage } from "../lib/i18n/LanguageContext";
 import { formatAmount } from "../lib/format";
 import LanguageSwitcher from "./LanguageSwitcher";
+import ThemeSwitcher from "./ThemeSwitcher";
 
 const FEATURE_KEYS = [
   { title: "landingFeature1Title", body: "landingFeature1Body" },
@@ -30,6 +31,7 @@ export default function LandingPage({ onGetStarted, onSignIn }) {
           </div>
           <div className="flex items-center gap-4 shrink-0">
             <LanguageSwitcher />
+            <ThemeSwitcher />
             <button
               onClick={onSignIn}
               className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-ink) underline decoration-(--color-rule) underline-offset-4"
