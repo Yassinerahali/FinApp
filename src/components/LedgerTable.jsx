@@ -1,14 +1,20 @@
 import { formatAmount, formatDate } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 
-export default function LedgerTable({ transactions, onDelete, onEdit }) {
+export default function LedgerTable({ transactions, onDelete, onEdit, accountsById = {}, filtersActive = false }) {
   const { t, catLabel, locale } = useLanguage();
 
   if (transactions.length === 0) {
     return (
       <div className="border border-(--color-rule) bg-(--color-paper) p-10 text-center">
-        <p className="font-serif text-lg mb-1">{t("emptyLedgerTitle")}</p>
-        <p className="text-sm text-(--color-ink-soft)">{t("emptyLedgerBody")}</p>
+        {filtersActive ? (
+          <p className="text-sm text-(--color-ink-soft)">{t("noMatchingEntries")}</p>
+        ) : (
+          <>
+            <p className="font-serif text-lg mb-1">{t("emptyLedgerTitle")}</p>
+            <p className="text-sm text-(--color-ink-soft)">{t("emptyLedgerBody")}</p>
+          </>
+        )}
       </div>
     );
   }
@@ -36,9 +42,15 @@ export default function LedgerTable({ transactions, onDelete, onEdit }) {
               </td>
               <td className="py-3 px-4 sm:px-5 hidden sm:table-cell text-(--color-ink-soft)">
                 {catLabel(tx.category)}
+                {tx.account_id && accountsById[tx.account_id] && (
+                  <span className="text-(--color-rule)"> · {accountsById[tx.account_id]}</span>
+                )}
               </td>
               <td className="py-3 px-4 sm:px-5">
-                <span className="sm:hidden text-xs text-(--color-ink-soft) block">{catLabel(tx.category)}</span>
+                <span className="sm:hidden text-xs text-(--color-ink-soft) block">
+                  {catLabel(tx.category)}
+                  {tx.account_id && accountsById[tx.account_id] && ` · ${accountsById[tx.account_id]}`}
+                </span>
                 {tx.note || <span className="text-(--color-rule)">—</span>}
               </td>
               <td

@@ -5,13 +5,14 @@ import { useLanguage } from "../lib/i18n/LanguageContext";
 
 const EMPTY = { type: "expense", amount: "", category: "food", date: todayISO(), note: "" };
 
-export default function EntryForm({ onAdd, editing, onSave, onCancelEdit }) {
+export default function EntryForm({ onAdd, editing, onSave, onCancelEdit, accounts = [], defaultAccountId }) {
   const { t, catLabel } = useLanguage();
   const [type, setType] = useState(EMPTY.type);
   const [amount, setAmount] = useState(EMPTY.amount);
   const [category, setCategory] = useState(EMPTY.category);
   const [date, setDate] = useState(EMPTY.date);
   const [note, setNote] = useState(EMPTY.note);
+  const [accountId, setAccountId] = useState(defaultAccountId ?? "");
   const [error, setError] = useState("");
 
   const isEditing = Boolean(editing);
@@ -23,6 +24,7 @@ export default function EntryForm({ onAdd, editing, onSave, onCancelEdit }) {
       setCategory(editing.category);
       setDate(editing.date);
       setNote(editing.note || "");
+      setAccountId(editing.account_id || "");
       setError("");
     } else {
       setType(EMPTY.type);
@@ -30,9 +32,10 @@ export default function EntryForm({ onAdd, editing, onSave, onCancelEdit }) {
       setCategory(EMPTY.category);
       setDate(todayISO());
       setNote(EMPTY.note);
+      setAccountId(defaultAccountId ?? "");
       setError("");
     }
-  }, [editing]);
+  }, [editing, defaultAccountId]);
 
   const categories = DEFAULT_CATEGORIES.filter((c) => c.type === type);
 
@@ -55,7 +58,14 @@ export default function EntryForm({ onAdd, editing, onSave, onCancelEdit }) {
       setError(t("errorDate"));
       return;
     }
-    const entry = { type, amount: numeric, category, date, note: note.trim() };
+    const entry = {
+      type,
+      amount: numeric,
+      category,
+      date,
+      note: note.trim(),
+      account_id: accountId || null,
+    };
 
     if (isEditing) {
       onSave(editing.id, entry);
@@ -172,6 +182,26 @@ export default function EntryForm({ onAdd, editing, onSave, onCancelEdit }) {
             className="w-full border-b border-(--color-ink) bg-transparent py-1.5 text-sm outline-none placeholder:text-(--color-rule)"
           />
         </div>
+
+        {accounts.length > 0 && (
+          <div>
+            <label htmlFor="account" className="block text-xs uppercase tracking-wide text-(--color-ink-soft) mb-1.5">
+              {t("account")}
+            </label>
+            <select
+              id="account"
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              className="w-full border-b border-(--color-ink) bg-transparent py-1.5 text-sm outline-none"
+            >
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {error && (

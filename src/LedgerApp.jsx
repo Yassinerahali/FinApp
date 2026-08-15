@@ -2,15 +2,20 @@ import { useMemo, useRef, useState } from "react";
 import { useTransactions } from "./hooks/useTransactions";
 import { useBudgets } from "./hooks/useBudgets";
 import { useRecurring } from "./hooks/useRecurring";
+import { useAccounts } from "./hooks/useAccounts";
+import { useSavingsGoals } from "./hooks/useSavingsGoals";
 import { exportTransactionsCSV, exportFullBackup, readBackupFile } from "./lib/export";
 import { useLanguage } from "./lib/i18n/LanguageContext";
 import EntryForm from "./components/EntryForm";
 import LedgerTable from "./components/LedgerTable";
+import TransactionFilters from "./components/TransactionFilters";
 import BalanceSummary from "./components/BalanceSummary";
 import CategoryBreakdown from "./components/CategoryBreakdown";
 import BudgetPanel from "./components/BudgetPanel";
 import RecurringPanel from "./components/RecurringPanel";
 import TrendsChart from "./components/TrendsChart";
+import AccountsPanel from "./components/AccountsPanel";
+import GoalsPanel from "./components/GoalsPanel";
 import LanguageSwitcher from "./components/LanguageSwitcher";
 
 function currentMonthKey() {
@@ -18,19 +23,24 @@ function currentMonthKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const TAB_IDS = ["ledger", "budgets", "recurring", "trends"];
+const EMPTY_FILTERS = { search: "", type: "all", category: "all", from: "", to: "", accountId: "all" };
+
+const TAB_IDS = ["ledger", "budgets", "recurring", "accounts", "goals", "trends"];
 const TAB_KEYS = {
   ledger: "tabLedger",
   budgets: "tabBudgets",
   recurring: "tabRecurring",
+  accounts: "tabAccounts",
+  goals: "tabGoals",
   trends: "tabTrends",
 };
 
 export default function LedgerApp({ user, signOut }) {
-  const { t } = useLanguage();
+  const { t, catLabel } = useLanguage();
   const [tab, setTab] = useState("ledger");
   const [editingId, setEditingId] = useState(null);
   const [restoreError, setRestoreError] = useState("");
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const fileInputRef = useRef(null);
   const {
     transactions,
@@ -41,6 +51,16 @@ export default function LedgerApp({ user, signOut }) {
   } = useTransactions(user.id);
   const { budgets, setBudget, replaceAllBudgets } = useBudgets(user.id);
   const { rules, addRule, deleteRule, replaceAllRules } = useRecurring(user.id, addTransaction);
+  const { accounts, addAccount, renameAccount, deleteAccount } = useAccounts(
+    user.id,
+    t("defaultAccountName")
+  );
+  const { goals, addGoal, contribute, deleteGoal } = useSavingsGoals(user.id);
+
+  const accountsById = useMemo(
+    () => Object.fromEntries(accounts.map((a) => [a.id, a.name])),
+    [accounts]
+  );
 
   const monthKey = currentMonthKey();
   const monthTransactions = useMemo(
@@ -58,6 +78,30 @@ export default function LedgerApp({ user, signOut }) {
       { income: 0, expense: 0 }
     );
   }, [monthTransactions]);
+
+  const filtersActive =
+    Boolean(filters.search) ||
+    filters.type !== "all" ||
+    filters.category !== "all" ||
+    Boolean(filters.from) ||
+    Boolean(filters.to) ||
+    filters.accountId !== "all";
+
+  const filteredTransactions = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    return transactions.filter((tx) => {
+      if (filters.type !== "all" && tx.type !== filters.type) return false;
+      if (filters.category !== "all" && tx.category !== filters.category) return false;
+      if (filters.accountId !== "all" && tx.account_id !== filters.accountId) return false;
+      if (filters.from && tx.date < filters.from) return false;
+      if (filters.to && tx.date > filters.to) return false;
+      if (search) {
+        const haystack = `${tx.note || ""} ${catLabel(tx.category)}`.toLowerCase();
+        if (!haystack.includes(search)) return false;
+      }
+      return true;
+    });
+  }, [transactions, filters, catLabel]);
 
   const editingTransaction = editingId ? transactions.find((tx) => tx.id === editingId) : null;
 
@@ -107,7 +151,7 @@ export default function LedgerApp({ user, signOut }) {
           </h1>
           <div className="flex items-center gap-4 shrink-0 flex-wrap">
             <button
-              onClick={() => exportTransactionsCSV(transactions)}
+              onClick={() => exportTransactionsCSV(transactions, accountsById)}
               className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-ink) underline decoration-(--color-rule) underline-offset-4"
             >
               {t("exportCsv")}
@@ -175,6 +219,8 @@ export default function LedgerApp({ user, signOut }) {
                 editing={editingTransaction}
                 onSave={handleSaveEdit}
                 onCancelEdit={() => setEditingId(null)}
+                accounts={accounts}
+                defaultAccountId={accounts[0]?.id}
               />
               <BalanceSummary income={income} expense={expense} />
               <CategoryBreakdown transactions={monthTransactions} />
@@ -184,10 +230,18 @@ export default function LedgerApp({ user, signOut }) {
               <h2 className="font-serif text-lg font-semibold tracking-tight mb-3">
                 {t("allEntries")}
               </h2>
+              <TransactionFilters
+                filters={filters}
+                setFilters={setFilters}
+                accounts={accounts}
+                showAccountFilter={accounts.length > 1}
+              />
               <LedgerTable
-                transactions={transactions}
+                transactions={filteredTransactions}
                 onDelete={handleDelete}
                 onEdit={(tx) => setEditingId(tx.id)}
+                accountsById={accountsById}
+                filtersActive={filtersActive}
               />
             </div>
           </div>
@@ -206,6 +260,23 @@ export default function LedgerApp({ user, signOut }) {
         {tab === "recurring" && (
           <div className="max-w-xl">
             <RecurringPanel rules={rules} addRule={addRule} deleteRule={deleteRule} />
+          </div>
+        )}
+
+        {tab === "accounts" && (
+          <div className="max-w-xl">
+            <AccountsPanel
+              accounts={accounts}
+              addAccount={addAccount}
+              renameAccount={renameAccount}
+              deleteAccount={deleteAccount}
+            />
+          </div>
+        )}
+
+        {tab === "goals" && (
+          <div className="max-w-xl">
+            <GoalsPanel goals={goals} addGoal={addGoal} contribute={contribute} deleteGoal={deleteGoal} />
           </div>
         )}
 

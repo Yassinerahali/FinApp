@@ -18,9 +18,16 @@ function csvEscape(value) {
   return str;
 }
 
-export function exportTransactionsCSV(transactions) {
-  const header = ["date", "type", "category", "amount", "note"];
-  const rows = transactions.map((t) => [t.date, t.type, t.category, t.amount, t.note || ""]);
+export function exportTransactionsCSV(transactions, accountsById = {}) {
+  const header = ["date", "type", "category", "account", "amount", "note"];
+  const rows = transactions.map((t) => [
+    t.date,
+    t.type,
+    t.category,
+    (t.account_id && accountsById[t.account_id]) || "",
+    t.amount,
+    t.note || "",
+  ]);
   const csv = [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
   const today = new Date().toISOString().slice(0, 10);
   downloadBlob(csv, `ledger-transactions-${today}.csv`, "text/csv;charset=utf-8;");
