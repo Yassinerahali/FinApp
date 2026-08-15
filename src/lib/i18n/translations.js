@@ -20,8 +20,8 @@ export const CATEGORY_LABELS = {
 
 export const TRANSLATIONS = {
   en: {
-    appName: "The Ledger",
-    tagline: "Personal accounts",
+    appName: "CHOUMCHOUM",
+    tagline: "Your personal ledger",
 
     // Auth
     signIn: "Sign in",
@@ -216,8 +216,8 @@ export const TRANSLATIONS = {
     madeBy: "Made by {name}",
   },
   fr: {
-    appName: "Le Grand Livre",
-    tagline: "Comptes personnels",
+    appName: "CHOUMCHOUM",
+    tagline: "Votre registre personnel",
 
     signIn: "Connexion",
     signUp: "Inscription",
@@ -400,8 +400,8 @@ export const TRANSLATIONS = {
     madeBy: "Créé par {name}",
   },
   ar: {
-    appName: "الدفتر",
-    tagline: "الحسابات الشخصية",
+    appName: "CHOUMCHOUM",
+    tagline: "دفترك الشخصي",
 
     signIn: "تسجيل الدخول",
     signUp: "إنشاء حساب",

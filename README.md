@@ -1,4 +1,4 @@
-# The Ledger — Personal Finance
+# CHOUMCHOUM — Your personal ledger
 
 A personal finance tracker: transactions, categories, budgets, recurring entries, and trends. Built with React + Vite + Tailwind, backed by Supabase (free tier) for accounts and storage.
 
