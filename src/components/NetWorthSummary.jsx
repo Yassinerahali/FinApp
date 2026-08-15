@@ -6,9 +6,9 @@ export default function NetWorthSummary({ transactions, accounts }) {
   const { t } = useLanguage();
 
   const { total, byAccount, unassigned } = useMemo(() => {
-    const byAccount = new Map(accounts.map((a) => [a.id, 0]));
+    const byAccount = new Map(accounts.map((a) => [a.id, a.opening_balance || 0]));
     let unassigned = 0;
-    let total = 0;
+    let total = accounts.reduce((sum, a) => sum + (a.opening_balance || 0), 0);
 
     for (const tx of transactions) {
       const signed = tx.type === "income" ? tx.amount : -tx.amount;

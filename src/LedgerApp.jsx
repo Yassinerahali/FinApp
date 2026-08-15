@@ -53,7 +53,7 @@ export default function LedgerApp({ user, signOut }) {
   } = useTransactions(user.id);
   const { budgets, setBudget, replaceAllBudgets } = useBudgets(user.id);
   const { rules, addRule, updateRule, deleteRule, replaceAllRules } = useRecurring(user.id, addTransaction);
-  const { accounts, addAccount, renameAccount, deleteAccount } = useAccounts(
+  const { accounts, addAccount, renameAccount, updateOpeningBalance, deleteAccount } = useAccounts(
     user.id,
     t("defaultAccountName")
   );
@@ -273,6 +273,7 @@ export default function LedgerApp({ user, signOut }) {
               accounts={accounts}
               addAccount={addAccount}
               renameAccount={renameAccount}
+              updateOpeningBalance={updateOpeningBalance}
               deleteAccount={deleteAccount}
             />
           </div>

@@ -50,10 +50,10 @@ export function useAccounts(userId, defaultName) {
   }, [userId]);
 
   const addAccount = useCallback(
-    async (name, kind) => {
+    async (name, kind, openingBalance = 0) => {
       const { data, error } = await supabase
         .from("accounts")
-        .insert({ user_id: userId, name, kind })
+        .insert({ user_id: userId, name, kind, opening_balance: openingBalance || 0 })
         .select()
         .single();
       if (!error && data) {
@@ -76,6 +76,18 @@ export function useAccounts(userId, defaultName) {
     }
   }, []);
 
+  const updateOpeningBalance = useCallback(async (id, openingBalance) => {
+    const { data, error } = await supabase
+      .from("accounts")
+      .update({ opening_balance: openingBalance || 0 })
+      .eq("id", id)
+      .select()
+      .single();
+    if (!error && data) {
+      setAccounts((prev) => prev.map((a) => (a.id === id ? data : a)));
+    }
+  }, []);
+
   const deleteAccount = useCallback(async (id) => {
     const { error } = await supabase.from("accounts").delete().eq("id", id);
     if (!error) {
@@ -84,5 +96,5 @@ export function useAccounts(userId, defaultName) {
     return { error };
   }, []);
 
-  return { accounts, loading, addAccount, renameAccount, deleteAccount };
+  return { accounts, loading, addAccount, renameAccount, updateOpeningBalance, deleteAccount };
 }

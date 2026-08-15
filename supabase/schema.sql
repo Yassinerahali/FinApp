@@ -10,6 +10,7 @@ create table if not exists accounts (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   kind text not null default 'cash' check (kind in ('cash', 'bank', 'card', 'other')),
+  opening_balance numeric not null default 0,
   created_at timestamptz not null default now()
 );
 
