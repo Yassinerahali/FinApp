@@ -3,14 +3,29 @@ import { useLanguage } from "../lib/i18n/LanguageContext";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ThemeSwitcher from "./ThemeSwitcher";
 
-export default function AuthScreen({ signIn, signUp, resetPassword, initialMode = "signin", onBack }) {
+export default function AuthScreen({ signIn, signUp, resetPassword, uploadAvatar, initialMode = "signin", onBack }) {
   const { t } = useLanguage();
   const [mode, setMode] = useState(initialMode); // "signin" | "signup" | "reset"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  }
 
   function switchMode(next) {
     setMode(next);
@@ -54,8 +69,19 @@ export default function AuthScreen({ signIn, signUp, resetPassword, initialMode 
       if (mode === "signin") {
         await signIn(email, password);
       } else {
-        await signUp(email, password);
-        setNotice(t("authSignupNotice"));
+        const { hasSession, userId } = await signUp(email, password, { firstName, lastName });
+        if (hasSession && avatarFile && userId) {
+          const { error: avatarError } = await uploadAvatar(avatarFile, userId);
+          if (avatarError) {
+            // Account creation still succeeded — don't block on this,
+            // just let them know the photo didn't make it and they can
+            // add it later from their profile.
+            setNotice(t("authSignupNoticeAvatarFailed"));
+            setMode("signin");
+            return;
+          }
+        }
+        setNotice(hasSession ? t("authSignupNoticeConfirmed") : t("authSignupNotice"));
         setMode("signin");
       }
     } catch (err) {
@@ -123,6 +149,59 @@ export default function AuthScreen({ signIn, signUp, resetPassword, initialMode 
           )}
 
           <div className="space-y-4">
+            {mode === "signup" && (
+              <>
+                <div className="flex flex-col items-center gap-2">
+                  <label
+                    htmlFor="avatar"
+                    className="w-16 h-16 rounded-full border border-(--color-rule) bg-(--color-paper-bar) flex items-center justify-center cursor-pointer overflow-hidden hover:border-(--color-brass) transition-colors"
+                  >
+                    {avatarPreview ? (
+                      <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="font-mono text-[10px] uppercase tracking-wide text-(--color-ink-soft) text-center px-1">
+                        {t("addPhoto")}
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    id="avatar"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstName" className="block text-xs uppercase tracking-wide text-(--color-ink-soft) mb-1.5">
+                      {t("firstName")}
+                    </label>
+                    <input
+                      id="firstName"
+                      type="text"
+                      autoComplete="given-name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full border-b border-(--color-ink) bg-transparent py-1.5 text-sm outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastName" className="block text-xs uppercase tracking-wide text-(--color-ink-soft) mb-1.5">
+                      {t("lastName")}
+                    </label>
+                    <input
+                      id="lastName"
+                      type="text"
+                      autoComplete="family-name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full border-b border-(--color-ink) bg-transparent py-1.5 text-sm outline-none"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
             <div>
               <label htmlFor="email" className="block text-xs uppercase tracking-wide text-(--color-ink-soft) mb-1.5">
                 {t("email")}

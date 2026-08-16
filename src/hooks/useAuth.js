@@ -26,9 +26,23 @@ export function useAuth() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const signUp = useCallback(async (email, password) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+  const signUp = useCallback(async (email, password, { firstName, lastName } = {}) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName || "",
+          last_name: lastName || "",
+        },
+      },
+    });
     if (error) throw error;
+    // If email confirmation is off, signUp returns an active session
+    // immediately — useful upstream to know whether an avatar can be
+    // uploaded right away (needs a session for storage RLS) or only
+    // after the user later confirms + signs in.
+    return { hasSession: Boolean(data.session), userId: data.user?.id };
   }, []);
 
   const signIn = useCallback(async (email, password) => {
@@ -53,6 +67,32 @@ export function useAuth() {
     setRecoveryMode(false);
   }, []);
 
+  const updateProfile = useCallback(async ({ firstName, lastName }) => {
+    const { error } = await supabase.auth.updateUser({
+      data: { first_name: firstName || "", last_name: lastName || "" },
+    });
+    return { error };
+  }, []);
+
+  const uploadAvatar = useCallback(async (file, userId) => {
+    const ext = file.name.split(".").pop();
+    const path = `${userId}/avatar.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true });
+    if (uploadError) return { error: uploadError };
+
+    const { data: publicData } = supabase.storage.from("avatars").getPublicUrl(path);
+    // Cache-bust so a changed photo shows immediately instead of the old
+    // cached image at the same URL.
+    const avatarUrl = `${publicData.publicUrl}?t=${Date.now()}`;
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: { avatar_url: avatarUrl },
+    });
+    return { error: updateError, avatarUrl };
+  }, []);
+
   return {
     session,
     user: session?.user ?? null,
@@ -63,5 +103,7 @@ export function useAuth() {
     signOut,
     resetPassword,
     updatePassword,
+    updateProfile,
+    uploadAvatar,
   };
 }

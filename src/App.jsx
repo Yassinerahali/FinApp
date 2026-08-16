@@ -16,8 +16,18 @@ export default function App() {
 }
 
 function AuthGate() {
-  const { user, loading, recoveryMode, signIn, signUp, signOut, resetPassword, updatePassword } =
-    useAuth();
+  const {
+    user,
+    loading,
+    recoveryMode,
+    signIn,
+    signUp,
+    signOut,
+    resetPassword,
+    updatePassword,
+    updateProfile,
+    uploadAvatar,
+  } = useAuth();
   const [view, setView] = useState("landing"); // "landing" | "signin" | "signup"
 
   if (loading) {
@@ -51,11 +61,19 @@ function AuthGate() {
         signIn={signIn}
         signUp={signUp}
         resetPassword={resetPassword}
+        uploadAvatar={uploadAvatar}
         initialMode={view}
         onBack={() => setView("landing")}
       />
     );
   }
 
-  return <LedgerApp user={user} signOut={signOut} />;
+  return (
+    <LedgerApp
+      user={user}
+      signOut={signOut}
+      updateProfile={updateProfile}
+      uploadAvatar={uploadAvatar}
+    />
+  );
 }

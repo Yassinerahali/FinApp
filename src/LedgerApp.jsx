@@ -20,6 +20,7 @@ import AccountsPanel from "./components/AccountsPanel";
 import NetWorthSummary from "./components/NetWorthSummary";
 import GoalsPanel from "./components/GoalsPanel";
 import CategoriesPanel from "./components/CategoriesPanel";
+import ProfileMenu from "./components/ProfileMenu";
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import ThemeSwitcher from "./components/ThemeSwitcher";
 
@@ -41,7 +42,7 @@ const TAB_KEYS = {
   trends: "tabTrends",
 };
 
-export default function LedgerApp({ user, signOut }) {
+export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }) {
   const { t, catLabel } = useLanguage();
   const [tab, setTab] = useState("ledger");
   const [editingId, setEditingId] = useState(null);
@@ -191,17 +192,14 @@ export default function LedgerApp({ user, signOut }) {
               className="hidden"
             />
             <span className="hidden sm:inline text-(--color-rule)">|</span>
-            <span className="hidden sm:inline font-mono text-[11px] text-(--color-ink-soft) truncate max-w-[10rem]" dir="ltr">
-              {user.email}
-            </span>
-            <button
-              onClick={signOut}
-              className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-debit) underline decoration-(--color-rule) underline-offset-4"
-            >
-              {t("signOut")}
-            </button>
             <LanguageSwitcher />
             <ThemeSwitcher />
+            <ProfileMenu
+              user={user}
+              updateProfile={updateProfile}
+              uploadAvatar={uploadAvatar}
+              signOut={signOut}
+            />
           </div>
         </div>
         {restoreError && (
