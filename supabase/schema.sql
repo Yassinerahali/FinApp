@@ -68,12 +68,28 @@ create table if not exists categories (
   created_at timestamptz not null default now()
 );
 
+-- Money lent to someone (they owe you) or borrowed from someone (you
+-- owe them). A repayment just adjusts remaining_amount — independent
+-- of transactions/categories.
+create table if not exists loans (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null check (type in ('lent', 'borrowed')),
+  counterparty_name text not null,
+  principal_amount numeric not null check (principal_amount > 0),
+  remaining_amount numeric not null check (remaining_amount >= 0),
+  due_date date,
+  note text default '',
+  created_at timestamptz not null default now()
+);
+
 alter table accounts enable row level security;
 alter table transactions enable row level security;
 alter table budgets enable row level security;
 alter table recurring_rules enable row level security;
 alter table savings_goals enable row level security;
 alter table categories enable row level security;
+alter table loans enable row level security;
 
 create policy "Users manage their own accounts"
   on accounts for all
@@ -102,6 +118,11 @@ create policy "Users manage their own savings goals"
 
 create policy "Users manage their own categories"
   on categories for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users manage their own loans"
+  on loans for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 

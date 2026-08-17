@@ -69,6 +69,29 @@ export function dueOccurrences(rule, todayISO) {
   return occurrences;
 }
 
+/**
+ * The next upcoming due date (ISO) for a monthly rule from today —
+ * independent of what's already been generated. Used for "due soon"
+ * notifications, not for catch-up generation.
+ */
+export function nextDueDate(rule, todayISO) {
+  const today = new Date(todayISO + "T00:00:00");
+  let year = today.getFullYear();
+  let month = today.getMonth();
+  let candidateISO = isoFor(year, month, rule.dayOfMonth);
+  let candidate = new Date(candidateISO + "T00:00:00");
+
+  if (candidate < today) {
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+    candidateISO = isoFor(year, month, rule.dayOfMonth);
+  }
+  return candidateISO;
+}
+
 /** Convert a Supabase row (snake_case) into the app's rule shape (camelCase). */
 export function ruleFromDb(row) {
   return {

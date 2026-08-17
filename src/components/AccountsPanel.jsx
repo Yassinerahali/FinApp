@@ -136,10 +136,11 @@ export default function AccountsPanel({ accounts, addAccount, renameAccount, upd
           </div>
         ) : (
           <ul>
-            {accounts.map((a) => (
+            {accounts.map((a, index) => (
               <li
                 key={a.id}
-                className="flex items-center justify-between gap-3 border-b border-(--color-rule) last:border-b-0 px-4 sm:px-5 py-3 group"
+                className="stagger-row flex items-center justify-between gap-3 border-b border-(--color-rule) last:border-b-0 px-4 sm:px-5 py-3 group"
+                style={{ "--i": Math.min(index, 14) }}
               >
                 <div className="min-w-0">
                   {renamingId === a.id ? (

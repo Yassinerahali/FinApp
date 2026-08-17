@@ -222,10 +222,11 @@ export default function RecurringPanel({ rules, addRule, updateRule, deleteRule,
           </div>
         ) : (
           <ul>
-            {rules.map((r) => (
+            {rules.map((r, index) => (
               <li
                 key={r.id}
-                className="flex items-center justify-between gap-3 border-b border-(--color-rule) last:border-b-0 px-4 sm:px-5 py-3 group"
+                className="stagger-row flex items-center justify-between gap-3 border-b border-(--color-rule) last:border-b-0 px-4 sm:px-5 py-3 group"
+                style={{ "--i": Math.min(index, 14) }}
               >
                 <div className="min-w-0">
                   <p className="text-sm truncate">{r.note || catLabel(r.category)}</p>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 import { formatAmount } from "../lib/format";
 
@@ -124,9 +124,15 @@ export default function GoalsPanel({ goals, addGoal, contribute, deleteGoal }) {
 function GoalCard({ goal, onContribute, onDelete }) {
   const { t } = useLanguage();
   const [amount, setAmount] = useState("");
+  const [barWidth, setBarWidth] = useState(0);
 
   const pct = Math.min((goal.saved_amount / goal.target_amount) * 100, 100);
   const reached = goal.saved_amount >= goal.target_amount;
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setBarWidth(Math.max(pct, 2)));
+    return () => cancelAnimationFrame(id);
+  }, [pct]);
 
   async function handleContribute(e) {
     e.preventDefault();
@@ -137,7 +143,7 @@ function GoalCard({ goal, onContribute, onDelete }) {
   }
 
   return (
-    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6">
+    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6 animate-fade-in-up">
       <div className="flex items-baseline justify-between mb-2">
         <h3 className="font-serif text-lg font-semibold tracking-tight">{goal.name}</h3>
         <button
@@ -158,13 +164,13 @@ function GoalCard({ goal, onContribute, onDelete }) {
 
       <div className="h-1.5 bg-(--color-paper-bar) overflow-hidden mb-4">
         <div
-          className={`h-full transition-all ${reached ? "bg-(--color-credit)" : "bg-(--color-brass)"}`}
-          style={{ width: `${Math.max(pct, 2)}%` }}
+          className={`h-full transition-all duration-500 ease-out ${reached ? "bg-(--color-credit)" : "bg-(--color-brass)"}`}
+          style={{ width: `${barWidth}%` }}
         />
       </div>
 
       {reached ? (
-        <p className="text-sm text-(--color-credit) font-medium">{t("goalReached")}</p>
+        <p className="text-sm text-(--color-credit) font-medium animate-pop-in">{t("goalReached")}</p>
       ) : (
         <form onSubmit={handleContribute} className="flex gap-2">
           <input

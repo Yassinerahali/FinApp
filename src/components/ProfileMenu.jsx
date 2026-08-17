@@ -74,7 +74,7 @@ export default function ProfileMenu({ user, updateProfile, uploadAvatar, signOut
 
       {open && (
         <div
-          className="absolute end-0 mt-2 w-72 border border-(--color-rule) bg-(--color-paper) shadow-lg z-20 p-5"
+          className="absolute end-0 mt-2 w-72 border border-(--color-rule) bg-(--color-paper) shadow-lg z-20 p-5 animate-scale-in"
         >
           <div className="flex items-center gap-3 mb-4">
             <button

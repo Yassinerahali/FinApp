@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatAmount } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 
@@ -12,7 +12,7 @@ export default function BudgetPanel({ budgets, setBudget, monthTransactions, cat
   }
 
   return (
-    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6">
+    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6 animate-fade-in-up">
       <div className="flex items-baseline justify-between mb-5">
         <h2 className="font-serif text-lg font-semibold tracking-tight">{t("monthlyBudgets")}</h2>
         <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft)">
@@ -21,9 +21,10 @@ export default function BudgetPanel({ budgets, setBudget, monthTransactions, cat
       </div>
 
       <ul className="space-y-5">
-        {expenseCategories.map((c) => (
+        {expenseCategories.map((c, index) => (
           <BudgetRow
             key={c.id}
+            index={index}
             name={catLabel(c.id)}
             limit={budgets[c.id]}
             spent={spentByCategory[c.id] || 0}
@@ -36,9 +37,10 @@ export default function BudgetPanel({ budgets, setBudget, monthTransactions, cat
   );
 }
 
-function BudgetRow({ name, limit, spent, onChange, t }) {
+function BudgetRow({ index, name, limit, spent, onChange, t }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(limit ? String(limit) : "");
+  const [barWidth, setBarWidth] = useState(0);
 
   function commit() {
     const numeric = parseFloat(draft);
@@ -50,8 +52,13 @@ function BudgetRow({ name, limit, spent, onChange, t }) {
   const pct = hasLimit ? Math.min((spent / limit) * 100, 100) : 0;
   const over = hasLimit && spent > limit;
 
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setBarWidth(hasLimit ? Math.max(pct, 2) : 0));
+    return () => cancelAnimationFrame(id);
+  }, [pct, hasLimit]);
+
   return (
-    <li>
+    <li className="stagger-row" style={{ "--i": Math.min(index, 14) }}>
       <div className="flex items-baseline justify-between mb-1 text-sm">
         <span>{name}</span>
         {editing ? (
@@ -82,12 +89,12 @@ function BudgetRow({ name, limit, spent, onChange, t }) {
       <div className="flex items-center gap-2">
         <div className="flex-1 h-1.5 bg-(--color-paper-bar) overflow-hidden">
           <div
-            className={`h-full transition-all ${over ? "bg-(--color-debit)" : "bg-(--color-brass)"}`}
-            style={{ width: `${hasLimit ? Math.max(pct, 2) : 0}%` }}
+            className={`h-full transition-all duration-500 ease-out ${over ? "bg-(--color-debit)" : "bg-(--color-brass)"}`}
+            style={{ width: `${barWidth}%` }}
           />
         </div>
         {over && (
-          <span role="img" aria-label={t("overBudget")} className="text-sm leading-none shrink-0">
+          <span role="img" aria-label={t("overBudget")} className="text-sm leading-none shrink-0 animate-pop-in">
             😔
           </span>
         )}

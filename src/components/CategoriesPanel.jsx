@@ -110,10 +110,11 @@ function CategoryGroup({ label, items, onDelete, t }) {
         {label}
       </p>
       <ul>
-        {items.map((c) => (
+        {items.map((c, index) => (
           <li
             key={c.id}
-            className="flex items-center justify-between gap-3 border-b border-(--color-rule) last:border-b-0 px-4 sm:px-5 py-2.5 group"
+            className="stagger-row flex items-center justify-between gap-3 border-b border-(--color-rule) last:border-b-0 px-4 sm:px-5 py-2.5 group"
+            style={{ "--i": Math.min(index, 14) }}
           >
             <span className="text-sm">{c.name}</span>
             <button

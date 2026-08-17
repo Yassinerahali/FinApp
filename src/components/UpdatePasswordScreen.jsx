@@ -35,7 +35,7 @@ export default function UpdatePasswordScreen({ updatePassword }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-5">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm animate-fade-in-up">
         <div className="flex justify-center gap-3 mb-4">
           <LanguageSwitcher />
           <ThemeSwitcher />

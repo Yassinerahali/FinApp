@@ -5,7 +5,9 @@ import { useRecurring } from "./hooks/useRecurring";
 import { useAccounts } from "./hooks/useAccounts";
 import { useSavingsGoals } from "./hooks/useSavingsGoals";
 import { useCustomCategories } from "./hooks/useCustomCategories";
+import { useLoans } from "./hooks/useLoans";
 import { DEFAULT_CATEGORIES } from "./lib/categories";
+import { computeNotifications } from "./lib/notifications";
 import { exportTransactionsCSV, exportFullBackup, readBackupFile } from "./lib/export";
 import { useLanguage } from "./lib/i18n/LanguageContext";
 import EntryForm from "./components/EntryForm";
@@ -20,7 +22,11 @@ import AccountsPanel from "./components/AccountsPanel";
 import NetWorthSummary from "./components/NetWorthSummary";
 import GoalsPanel from "./components/GoalsPanel";
 import CategoriesPanel from "./components/CategoriesPanel";
+import LoansPanel from "./components/LoansPanel";
+import SpendingInsight from "./components/SpendingInsight";
+import ImportWizard from "./components/ImportWizard";
 import ProfileMenu from "./components/ProfileMenu";
+import NotificationBell from "./components/NotificationBell";
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import ThemeSwitcher from "./components/ThemeSwitcher";
 
@@ -31,13 +37,14 @@ function currentMonthKey() {
 
 const EMPTY_FILTERS = { search: "", type: "all", category: "all", from: "", to: "", accountId: "all" };
 
-const TAB_IDS = ["ledger", "budgets", "recurring", "accounts", "goals", "categories", "trends"];
+const TAB_IDS = ["ledger", "budgets", "recurring", "accounts", "goals", "loans", "categories", "trends"];
 const TAB_KEYS = {
   ledger: "tabLedger",
   budgets: "tabBudgets",
   recurring: "tabRecurring",
   accounts: "tabAccounts",
   goals: "tabGoals",
+  loans: "tabLoans",
   categories: "tabCategories",
   trends: "tabTrends",
 };
@@ -48,10 +55,12 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
   const [editingId, setEditingId] = useState(null);
   const [restoreError, setRestoreError] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [showImport, setShowImport] = useState(false);
   const fileInputRef = useRef(null);
   const {
     transactions,
     addTransaction,
+    bulkAddTransactions,
     updateTransaction,
     deleteTransaction,
     replaceAllTransactions,
@@ -64,6 +73,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
   );
   const { goals, addGoal, contribute, deleteGoal } = useSavingsGoals(user.id);
   const { categories: customCategories, addCategory, deleteCategory } = useCustomCategories(user.id);
+  const { loans, addLoan, recordPayment, deleteLoan } = useLoans(user.id);
 
   const allCategories = useMemo(
     () => [
@@ -94,6 +104,18 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
       { income: 0, expense: 0 }
     );
   }, [monthTransactions]);
+
+  const notifications = useMemo(
+    () =>
+      computeNotifications({
+        budgets,
+        monthTransactions,
+        rules,
+        loans,
+        catLabel,
+      }),
+    [budgets, monthTransactions, rules, loans, catLabel]
+  );
 
   const filtersActive =
     Boolean(filters.search) ||
@@ -167,6 +189,12 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
           </h1>
           <div className="flex items-center gap-4 shrink-0 flex-wrap">
             <button
+              onClick={() => setShowImport(true)}
+              className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-ink) underline decoration-(--color-rule) underline-offset-4"
+            >
+              {t("importButton")}
+            </button>
+            <button
               onClick={() => exportTransactionsCSV(transactions, accountsById)}
               className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-ink) underline decoration-(--color-rule) underline-offset-4"
             >
@@ -194,6 +222,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
             <span className="hidden sm:inline text-(--color-rule)">|</span>
             <LanguageSwitcher />
             <ThemeSwitcher />
+            <NotificationBell notifications={notifications} onNavigate={setTab} />
             <ProfileMenu
               user={user}
               updateProfile={updateProfile}
@@ -224,7 +253,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
         </nav>
       </header>
 
-      <main className="max-w-5xl mx-auto px-5 sm:px-8 py-8">
+      <main key={tab} className="max-w-5xl mx-auto px-5 sm:px-8 py-8 animate-fade-in-up">
         {tab === "ledger" && (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6 items-start">
             <div className="space-y-6 lg:sticky lg:top-8">
@@ -305,6 +334,17 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
           </div>
         )}
 
+        {tab === "loans" && (
+          <div className="max-w-xl">
+            <LoansPanel
+              loans={loans}
+              addLoan={addLoan}
+              recordPayment={recordPayment}
+              deleteLoan={deleteLoan}
+            />
+          </div>
+        )}
+
         {tab === "categories" && (
           <div className="max-w-xl">
             <CategoriesPanel
@@ -316,7 +356,8 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
         )}
 
         {tab === "trends" && (
-          <div className="max-w-3xl">
+          <div className="max-w-3xl space-y-6">
+            <SpendingInsight transactions={transactions} months={6} />
             <TrendsChart transactions={transactions} months={6} />
           </div>
         )}
@@ -325,6 +366,15 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
       <footer className="max-w-5xl mx-auto px-5 sm:px-8 py-8 text-xs text-(--color-ink-soft)">
         {t("signedInAs", { email: user.email })}
       </footer>
+
+      {showImport && (
+        <ImportWizard
+          categories={allCategories}
+          accounts={accounts}
+          bulkAddTransactions={bulkAddTransactions}
+          onClose={() => setShowImport(false)}
+        />
+      )}
     </div>
   );
 }

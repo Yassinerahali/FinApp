@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "./hooks/useAuth";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
+import { useLanguage } from "./lib/i18n/LanguageContext";
 import SetupNotice from "./components/SetupNotice";
 import LandingPage from "./components/LandingPage";
 import AuthScreen from "./components/AuthScreen";
@@ -16,6 +17,7 @@ export default function App() {
 }
 
 function AuthGate() {
+  const { t } = useLanguage();
   const {
     user,
     loading,
@@ -32,10 +34,15 @@ function AuthGate() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="font-mono text-xs uppercase tracking-widest text-(--color-ink-soft)">
-          Loading…
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 animate-fade-in">
+        <p className="font-serif text-lg font-semibold tracking-tight text-(--color-ink-soft)">
+          {t("appName")}
         </p>
+        <div className="flex gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-(--color-brass) animate-bounce" style={{ animationDelay: "0ms" }} />
+          <span className="w-2 h-2 rounded-full bg-(--color-brass) animate-bounce" style={{ animationDelay: "150ms" }} />
+          <span className="w-2 h-2 rounded-full bg-(--color-brass) animate-bounce" style={{ animationDelay: "300ms" }} />
+        </div>
       </div>
     );
   }

@@ -6,7 +6,7 @@ export default function LedgerTable({ transactions, onDelete, onEdit, accountsBy
 
   if (transactions.length === 0) {
     return (
-      <div className="border border-(--color-rule) bg-(--color-paper) p-10 text-center">
+      <div className="border border-(--color-rule) bg-(--color-paper) p-10 text-center animate-fade-in-up">
         {filtersActive ? (
           <p className="text-sm text-(--color-ink-soft)">{t("noMatchingEntries")}</p>
         ) : (
@@ -20,7 +20,7 @@ export default function LedgerTable({ transactions, onDelete, onEdit, accountsBy
   }
 
   return (
-    <div className="border border-(--color-rule) bg-(--color-paper)">
+    <div className="border border-(--color-rule) bg-(--color-paper) animate-fade-in-up">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-(--color-ink) text-xs uppercase tracking-wide text-(--color-ink-soft)">
@@ -32,10 +32,11 @@ export default function LedgerTable({ transactions, onDelete, onEdit, accountsBy
           </tr>
         </thead>
         <tbody>
-          {transactions.map((tx) => (
+          {transactions.map((tx, index) => (
             <tr
               key={tx.id}
-              className="border-b border-(--color-rule) last:border-b-0 group hover:bg-(--color-paper-bar)/50 transition-colors"
+              className="stagger-row border-b border-(--color-rule) last:border-b-0 group hover:bg-(--color-paper-bar)/50"
+              style={{ "--i": Math.min(index, 14) }}
             >
               <td className="py-3 px-4 sm:px-5 font-mono text-xs tabular text-(--color-ink-soft) whitespace-nowrap">
                 {formatDate(tx.date, locale)}

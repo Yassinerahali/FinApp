@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { todayISO } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
+import { suggestCategories } from "../lib/aiClient";
 
 const EMPTY = { type: "expense", amount: "", category: "food", date: todayISO(), note: "" };
 
@@ -21,6 +22,8 @@ export default function EntryForm({
   const [note, setNote] = useState(EMPTY.note);
   const [accountId, setAccountId] = useState(defaultAccountId ?? "");
   const [error, setError] = useState("");
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState("");
 
   const isEditing = Boolean(editing);
 
@@ -51,6 +54,26 @@ export default function EntryForm({
     if (!isEditing || allCategories.find((c) => c.id === category)?.type !== nextType) {
       const first = allCategories.find((c) => c.type === nextType);
       if (first) setCategory(first.id);
+    }
+  }
+
+  async function handleSuggestCategory() {
+    if (!note.trim() || suggesting) return;
+    setSuggesting(true);
+    setSuggestError("");
+    try {
+      const [suggestedId] = await suggestCategories([note], allCategories);
+      const match = allCategories.find((c) => c.id === suggestedId);
+      if (match) {
+        setType(match.type);
+        setCategory(match.id);
+      } else {
+        setSuggestError(t("suggestNoMatch"));
+      }
+    } catch (err) {
+      setSuggestError(err.message || t("suggestError"));
+    } finally {
+      setSuggesting(false);
     }
   }
 
@@ -146,9 +169,19 @@ export default function EntryForm({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="category" className="block text-xs uppercase tracking-wide text-(--color-ink-soft) mb-1.5">
-              {t("category")}
-            </label>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label htmlFor="category" className="block text-xs uppercase tracking-wide text-(--color-ink-soft)">
+                {t("category")}
+              </label>
+              <button
+                type="button"
+                onClick={handleSuggestCategory}
+                disabled={!note.trim() || suggesting}
+                className="font-mono text-[10px] uppercase tracking-widest text-(--color-brass-dark) hover:text-(--color-ink) disabled:text-(--color-rule) disabled:cursor-not-allowed transition-colors"
+              >
+                {suggesting ? t("suggesting") : `✨ ${t("suggestCategory")}`}
+              </button>
+            </div>
             <select
               id="category"
               value={category}
@@ -188,6 +221,7 @@ export default function EntryForm({
             onChange={(e) => setNote(e.target.value)}
             className="w-full border-b border-(--color-ink) bg-transparent py-1.5 text-sm outline-none placeholder:text-(--color-rule)"
           />
+          {suggestError && <p className="mt-1.5 text-xs text-(--color-debit)">{suggestError}</p>}
         </div>
 
         {accounts.length > 0 && (

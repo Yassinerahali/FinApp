@@ -1,0 +1,9 @@
+Add the option to import data from Excel file
+rename the website to Choumchoum - your personnal ledger
+add "first name" "last name" "profile picture" to the sign up phase
+show the profile picture in the top right corner and expand it when clicked to show profile settings
+replace the email shown on the top by the user name
+add or delete categories (loans, debts ...)
+when you surpace a budget it should show a sad face emoji on the budget progres slide
+beautify the website (animations, interactive elements...) make it modern
+add loans and debts management 

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatAmount } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 
@@ -20,6 +20,7 @@ function monthLabel(key, locale) {
 
 export default function TrendsChart({ transactions, months = 6 }) {
   const { t, locale } = useLanguage();
+  const [grown, setGrown] = useState(false);
 
   const data = useMemo(() => {
     const keys = lastNMonthKeys(months);
@@ -35,11 +36,16 @@ export default function TrendsChart({ transactions, months = 6 }) {
     return keys.map((k) => ({ key: k, label: monthLabel(k, locale), ...byMonth[k] }));
   }, [transactions, months, locale]);
 
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setGrown(true));
+    return () => cancelAnimationFrame(id);
+  }, [data]);
+
   const max = Math.max(1, ...data.map((d) => Math.max(d.income, d.expense)));
   const chartHeight = 140;
 
   return (
-    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6">
+    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6 animate-fade-in-up">
       <div className="flex items-baseline justify-between mb-6">
         <h2 className="font-serif text-lg font-semibold tracking-tight">
           {t("lastNMonths", { n: months })}
@@ -55,17 +61,27 @@ export default function TrendsChart({ transactions, months = 6 }) {
       </div>
 
       <div className="flex items-end gap-4 sm:gap-6" style={{ height: chartHeight }}>
-        {data.map((d) => (
+        {data.map((d, index) => (
           <div key={d.key} className="flex-1 flex flex-col items-center justify-end h-full">
             <div className="flex items-end gap-1 h-full w-full justify-center">
               <div
-                className="w-1/3 max-w-5 bg-(--color-credit)"
-                style={{ height: `${(d.income / max) * 100}%`, minHeight: d.income > 0 ? 2 : 0 }}
+                className="w-1/3 max-w-5 bg-(--color-credit) transition-all ease-out hover:opacity-75"
+                style={{
+                  height: grown ? `${(d.income / max) * 100}%` : "0%",
+                  minHeight: grown && d.income > 0 ? 2 : 0,
+                  transitionDuration: "600ms",
+                  transitionDelay: `${index * 60}ms`,
+                }}
                 title={`${t("income")}: ${formatAmount(d.income)}`}
               />
               <div
-                className="w-1/3 max-w-5 bg-(--color-debit)"
-                style={{ height: `${(d.expense / max) * 100}%`, minHeight: d.expense > 0 ? 2 : 0 }}
+                className="w-1/3 max-w-5 bg-(--color-debit) transition-all ease-out hover:opacity-75"
+                style={{
+                  height: grown ? `${(d.expense / max) * 100}%` : "0%",
+                  minHeight: grown && d.expense > 0 ? 2 : 0,
+                  transitionDuration: "600ms",
+                  transitionDelay: `${index * 60 + 30}ms`,
+                }}
                 title={`${t("expenses")}: ${formatAmount(d.expense)}`}
               />
             </div>

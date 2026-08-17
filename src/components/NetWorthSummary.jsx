@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { formatAmount } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
+import { useCountUp } from "../hooks/useCountUp";
 
 export default function NetWorthSummary({ transactions, accounts }) {
   const { t } = useLanguage();
@@ -24,9 +25,10 @@ export default function NetWorthSummary({ transactions, accounts }) {
   }, [transactions, accounts]);
 
   const isNegative = total < 0;
+  const animatedTotal = useCountUp(total);
 
   return (
-    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6">
+    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6 animate-fade-in-up">
       <div className="flex items-baseline justify-between mb-5">
         <h2 className="font-serif text-lg font-semibold tracking-tight">{t("netWorth")}</h2>
         <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft)">
@@ -74,7 +76,7 @@ export default function NetWorthSummary({ transactions, accounts }) {
               isNegative ? "text-(--color-debit)" : "text-(--color-ink)"
             }`}
           >
-            {isNegative ? "−" : ""}{formatAmount(total)}
+            {isNegative ? "−" : ""}{formatAmount(animatedTotal)}
           </dd>
         </div>
       </div>

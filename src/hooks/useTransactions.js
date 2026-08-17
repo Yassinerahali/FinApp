@@ -42,6 +42,19 @@ export function useTransactions(userId) {
     [userId]
   );
 
+  const bulkAddTransactions = useCallback(
+    async (entries) => {
+      if (!entries || entries.length === 0) return { data: [], error: null };
+      const rows = entries.map((entry) => ({ ...entry, user_id: userId }));
+      const { data, error } = await supabase.from("transactions").insert(rows).select();
+      if (!error && data) {
+        setTransactions((prev) => [...data, ...prev]);
+      }
+      return { data, error };
+    },
+    [userId]
+  );
+
   const updateTransaction = useCallback(async (id, patch) => {
     const { data, error } = await supabase
       .from("transactions")
@@ -89,6 +102,7 @@ export function useTransactions(userId) {
     transactions: sorted,
     loading,
     addTransaction,
+    bulkAddTransactions,
     updateTransaction,
     deleteTransaction,
     replaceAllTransactions,

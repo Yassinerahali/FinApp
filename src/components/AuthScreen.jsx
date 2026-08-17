@@ -93,7 +93,7 @@ export default function AuthScreen({ signIn, signUp, resetPassword, uploadAvatar
 
   return (
     <div className="min-h-screen flex items-center justify-center px-5">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm animate-fade-in-up">
         {onBack && (
           <button
             onClick={onBack}
