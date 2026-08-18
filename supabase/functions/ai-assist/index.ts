@@ -10,11 +10,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
-const MODEL = "llama-3.3-70b-versatile";
+// llama-3.3-70b-versatile was deprecated by Groq on 2026-08-16. This is
+// their recommended replacement — check https://console.groq.com/docs/models
+// if this ever needs to change again.
+const MODEL = "openai/gpt-oss-120b";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 function json(data, status = 200) {
