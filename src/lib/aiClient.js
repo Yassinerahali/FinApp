@@ -29,6 +29,22 @@ export async function getSpendingInsight(summary, lang) {
   return data.result;
 }
 
+/**
+ * Sends the conversation plus a live financial data snapshot to the chat
+ * assistant. Returns { reply, action } — action is either null or a
+ * proposed { type: "create_goal", name, target_amount, target_date }
+ * that the UI should show as a confirm-before-creating card, never
+ * apply automatically.
+ */
+export async function chatWithAssistant(messages, context, lang) {
+  const { data, error } = await supabase.functions.invoke("ai-assist", {
+    body: { action: "chat", messages, context, lang },
+  });
+  if (error) throw new Error(await extractFunctionError(error));
+  if (data?.error) throw new Error(data.error);
+  return { reply: data.reply, action: data.action };
+}
+
 // supabase-js's FunctionsHttpError wraps the actual response; try to pull
 // the real error message out of it instead of showing a generic one.
 async function extractFunctionError(error) {

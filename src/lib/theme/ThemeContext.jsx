@@ -16,11 +16,15 @@ function getInitialTheme() {
   return "light";
 }
 
+const THEME_COLORS = { light: "#FAF9F3", dark: "#14181A" };
+
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(getInitialTheme);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", THEME_COLORS[theme] || THEME_COLORS.light);
   }, [theme]);
 
   const setTheme = useCallback((next) => {

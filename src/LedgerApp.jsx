@@ -24,6 +24,7 @@ import GoalsPanel from "./components/GoalsPanel";
 import CategoriesPanel from "./components/CategoriesPanel";
 import LoansPanel from "./components/LoansPanel";
 import SpendingInsight from "./components/SpendingInsight";
+import AssistantChat from "./components/AssistantChat";
 import ImportWizard from "./components/ImportWizard";
 import ProfileMenu from "./components/ProfileMenu";
 import NotificationBell from "./components/NotificationBell";
@@ -375,6 +376,17 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
           onClose={() => setShowImport(false)}
         />
       )}
+
+      <AssistantChat
+        transactions={transactions}
+        budgets={budgets}
+        goals={goals}
+        loans={loans}
+        accounts={accounts}
+        rules={rules}
+        catLabel={catLabel}
+        onCreateGoal={addGoal}
+      />
     </div>
   );
 }

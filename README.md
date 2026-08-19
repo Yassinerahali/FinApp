@@ -20,6 +20,14 @@ A personal finance tracker: transactions, categories, budgets, recurring entries
 
 By default, Supabase requires email confirmation for new signups — check your inbox after signing up, or turn that off in **Authentication → Providers → Email** for local testing.
 
+## Install it as an app (iPhone/iPad)
+
+The live site is an installable PWA — it runs full-screen from your home screen with its own icon, and the app shell (not your data) is cached for faster loads. iOS also supports real push notifications for installed PWAs like this one, though that's not wired up yet — the in-app notification bell is what you have today.
+
+1. Open the live URL in **Safari** (must be Safari, not Chrome or another browser).
+2. Tap the **Share** button, then **Add to Home Screen**.
+3. Open it from the new home screen icon from then on.
+
 ## What's inside
 
 - Add/edit/delete transactions (income & expense), with categories and notes

@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#16241C"/>
+  <!-- Bold "C" monogram as a stroked arc, avoiding any font dependency at render time -->
+  <path
+    d="M 336 130 A 110 110 0 1 0 336 290"
+    fill="none"
+    stroke="#A8792E"
+    stroke-width="46"
+    stroke-linecap="round"
+  />
+  <!-- Signature double-rule motif (mirrors the double-underline total seen throughout the app) -->
+  <line x1="176" y1="392" x2="336" y2="392" stroke="#A8792E" stroke-width="10" stroke-linecap="round"/>
+  <line x1="176" y1="416" x2="336" y2="416" stroke="#A8792E" stroke-width="10" stroke-linecap="round"/>
+</svg>

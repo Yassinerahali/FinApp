@@ -1,9 +1,9 @@
 // Supabase Edge Function: ai-assist
-// Proxies category-suggestion and spending-insight requests to Groq's
-// free-tier API. The Groq API key lives only here (as a Supabase Edge
-// Function secret) — it's never sent to or stored in the browser.
-// Deploy via the Supabase Dashboard (Edge Functions -> Deploy a new
-// function) or the CLI: supabase functions deploy ai-assist
+// Proxies category-suggestion, spending-insight, and chat-assistant
+// requests to Groq's free-tier API. The Groq API key lives only here
+// (as a Supabase Edge Function secret) — it's never sent to or stored
+// in the browser. Deploy via the Supabase Dashboard (Edge Functions ->
+// Deploy a new function) or the CLI: supabase functions deploy ai-assist
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -14,6 +14,7 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 // their recommended replacement — check https://console.groq.com/docs/models
 // if this ever needs to change again.
 const MODEL = "openai/gpt-oss-120b";
+const MAX_HISTORY_MESSAGES = 16;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,7 +29,7 @@ function json(data, status = 200) {
   });
 }
 
-async function callGroq(prompt, { jsonMode = false } = {}) {
+async function callGroqMessages(messages, { jsonMode = false, maxTokens = 800 } = {}) {
   if (!GROQ_API_KEY) {
     throw new Error("GROQ_API_KEY is not configured on the server.");
   }
@@ -40,9 +41,9 @@ async function callGroq(prompt, { jsonMode = false } = {}) {
     },
     body: JSON.stringify({
       model: MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-      max_tokens: 800,
+      messages,
+      temperature: 0.3,
+      max_tokens: maxTokens,
       ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
     }),
   });
@@ -52,6 +53,10 @@ async function callGroq(prompt, { jsonMode = false } = {}) {
   }
   const data = await res.json();
   return data.choices?.[0]?.message?.content ?? "";
+}
+
+async function callGroq(prompt, options) {
+  return callGroqMessages([{ role: "user", content: prompt }], options);
 }
 
 function extractJson(text) {
@@ -120,6 +125,79 @@ Data (amounts in MAD): ${JSON.stringify(summary)}`;
   return text.trim();
 }
 
+function buildChatSystemPrompt(context, lang) {
+  const languageName = { en: "English", fr: "French", ar: "Arabic" }[lang] || "English";
+
+  return `You are the built-in financial assistant inside "CHOUMCHOUM", a personal ledger app. Respond in ${languageName}, in a warm but concise way — a few sentences, not an essay, unless the person clearly wants detail.
+
+You are given below a JSON snapshot of the user's REAL current financial data (amounts in MAD). This is the only source of truth you have:
+- Only answer questions about their finances using this data.
+- If something isn't in the data (e.g. a specific month not included, or a category with no entries), say plainly that you don't have that information rather than guessing or estimating.
+- Never invent numbers. If you're not sure, say so.
+- Proactively mention anything urgent from "alerts" (over-budget categories, bills or loan payments due soon) when it's relevant to what the user is asking, or if they greet you / ask an open-ended question.
+- You can help the user think through a new savings goal (name, target amount, optional target date). When — and only when — they've clearly settled on wanting to create one and you have at least a name and a target amount, end your reply with a fenced block on its own line, formatted EXACTLY like this, with no other text inside it:
+\`\`\`action
+{"type":"create_goal","name":"<name>","target_amount":<number>,"target_date":"<YYYY-MM-DD or null>"}
+\`\`\`
+  Only include this block when actually proposing to create the goal right now (the app will ask the user to confirm before creating it) — never for hypothetical discussion, and never more than one per reply.
+- You cannot directly create transactions, change budgets, or modify anything else — only propose goals as described above. If asked to do something else you can't do, say so and suggest which tab of the app they'd use instead.
+
+Data snapshot:
+${JSON.stringify(context)}`;
+}
+
+function extractAction(text) {
+  const match = text.match(/```action\s*([\s\S]*?)```/);
+  if (!match) return { reply: text.trim(), action: null };
+
+  const cleanedReply = text.replace(match[0], "").trim();
+  try {
+    const parsed = JSON.parse(match[1].trim());
+    if (
+      parsed &&
+      parsed.type === "create_goal" &&
+      typeof parsed.name === "string" &&
+      parsed.name.trim() &&
+      typeof parsed.target_amount === "number" &&
+      parsed.target_amount > 0
+    ) {
+      return {
+        reply: cleanedReply,
+        action: {
+          type: "create_goal",
+          name: parsed.name.trim(),
+          target_amount: parsed.target_amount,
+          target_date: typeof parsed.target_date === "string" ? parsed.target_date : null,
+        },
+      };
+    }
+  } catch {
+    // Malformed action block — fall through and just show the cleaned text.
+  }
+  return { reply: cleanedReply, action: null };
+}
+
+async function handleChat(body) {
+  const { messages, context, lang } = body;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    throw new Error("messages must be a non-empty array.");
+  }
+  if (!context) throw new Error("context is required.");
+
+  const trimmedHistory = messages.slice(-MAX_HISTORY_MESSAGES).map((m) => ({
+    role: m.role === "assistant" ? "assistant" : "user",
+    content: String(m.content ?? "").slice(0, 4000),
+  }));
+
+  const fullMessages = [
+    { role: "system", content: buildChatSystemPrompt(context, lang) },
+    ...trimmedHistory,
+  ];
+
+  const raw = await callGroqMessages(fullMessages, { maxTokens: 500 });
+  return extractAction(raw);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -147,6 +225,10 @@ Deno.serve(async (req) => {
     if (body.action === "insights") {
       const result = await handleInsights(body);
       return json({ result });
+    }
+    if (body.action === "chat") {
+      const result = await handleChat(body);
+      return json(result);
     }
     throw new Error("Unknown action.");
   } catch (err) {
