@@ -68,16 +68,22 @@ export async function unsubscribeFromPush() {
 export async function sendTestPush() {
   const { data, error } = await supabase.functions.invoke("send-push", { body: { action: "test" } });
   if (error) {
-    try {
-      if (error.context?.json) {
-        const body = await error.context.json();
-        if (body?.error) throw new Error(body.error);
-      }
-    } catch {
-      // fall through to generic message below
-    }
-    throw new Error(error.message || "Couldn't send a test notification.");
+    throw new Error(await extractPushFunctionError(error));
   }
   if (data?.error) throw new Error(data.error);
   return data;
+}
+
+// Mirrors lib/aiClient.js's extractFunctionError — kept separate rather
+// than shared, since these two files aren't otherwise coupled.
+async function extractPushFunctionError(error) {
+  try {
+    if (error.context?.json) {
+      const body = await error.context.json();
+      if (body?.error) return body.error;
+    }
+  } catch {
+    // fall through to generic message below
+  }
+  return error.message || "Couldn't send a test notification.";
 }
