@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 import { displayName, initials, avatarUrl } from "../lib/profile";
+import { usePushSubscription } from "../hooks/usePushSubscription";
+import { sendTestPush } from "../lib/push";
 
 export default function ProfileMenu({ user, updateProfile, uploadAvatar, signOut }) {
   const { t } = useLanguage();
@@ -13,6 +15,9 @@ export default function ProfileMenu({ user, updateProfile, uploadAvatar, signOut
   const [saved, setSaved] = useState(false);
   const containerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const push = usePushSubscription(user.id);
+  const [pushError, setPushError] = useState("");
+  const [testStatus, setTestStatus] = useState("");
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -48,6 +53,27 @@ export default function ProfileMenu({ user, updateProfile, uploadAvatar, signOut
     setUploading(false);
     if (uploadError) {
       setError(uploadError.message || t("somethingWentWrong"));
+    }
+  }
+
+  async function handleTogglePush() {
+    setPushError("");
+    setTestStatus("");
+    const { error: toggleError } = push.subscribed ? await push.unsubscribe() : await push.subscribe();
+    if (toggleError) {
+      setPushError(toggleError.message || t("somethingWentWrong"));
+    }
+  }
+
+  async function handleSendTest() {
+    setPushError("");
+    setTestStatus(t("pleaseWait"));
+    try {
+      await sendTestPush();
+      setTestStatus(t("testNotificationSent"));
+    } catch (err) {
+      setTestStatus("");
+      setPushError(err.message || t("somethingWentWrong"));
     }
   }
 
@@ -157,6 +183,42 @@ export default function ProfileMenu({ user, updateProfile, uploadAvatar, signOut
               {saving ? t("pleaseWait") : t("saveProfile")}
             </button>
           </form>
+
+          {push.supported && (
+            <div className="mt-4 pt-4 border-t border-(--color-rule)">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm">{t("pushNotifications")}</p>
+                  <p className="text-[11px] text-(--color-ink-soft)">
+                    {push.subscribed ? t("pushEnabled") : t("pushDisabled")}
+                  </p>
+                </div>
+                <button
+                  onClick={handleTogglePush}
+                  disabled={push.loading}
+                  className={`shrink-0 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest border transition-colors disabled:opacity-60 ${
+                    push.subscribed
+                      ? "border-(--color-rule) text-(--color-ink-soft) hover:border-(--color-debit) hover:text-(--color-debit)"
+                      : "bg-(--color-ink) border-(--color-ink) text-(--color-paper) hover:bg-(--color-brass-dark)"
+                  }`}
+                >
+                  {push.loading ? t("pleaseWait") : push.subscribed ? t("disable") : t("enable")}
+                </button>
+              </div>
+              {push.subscribed && (
+                <button
+                  onClick={handleSendTest}
+                  className="mt-2 font-mono text-[10px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-brass-dark) underline decoration-(--color-rule) underline-offset-4"
+                >
+                  {t("sendTestNotification")}
+                </button>
+              )}
+              {pushError && <p className="mt-2 text-xs text-(--color-debit)">{pushError}</p>}
+              {testStatus && !pushError && (
+                <p className="mt-2 text-xs text-(--color-credit)">{testStatus}</p>
+              )}
+            </div>
+          )}
 
           <button
             onClick={signOut}

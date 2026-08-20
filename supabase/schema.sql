@@ -83,6 +83,26 @@ create table if not exists loans (
   created_at timestamptz not null default now()
 );
 
+-- Push notification subscriptions (one row per device) and a log used
+-- only to avoid re-sending the same alert every time the daily check
+-- runs.
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists push_notification_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  alert_id text not null,
+  sent_date date not null default current_date,
+  unique (user_id, alert_id, sent_date)
+);
+
 alter table accounts enable row level security;
 alter table transactions enable row level security;
 alter table budgets enable row level security;
@@ -90,6 +110,8 @@ alter table recurring_rules enable row level security;
 alter table savings_goals enable row level security;
 alter table categories enable row level security;
 alter table loans enable row level security;
+alter table push_subscriptions enable row level security;
+alter table push_notification_log enable row level security;
 
 create policy "Users manage their own accounts"
   on accounts for all
@@ -125,6 +147,14 @@ create policy "Users manage their own loans"
   on loans for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+create policy "Users manage their own push subscriptions"
+  on push_subscriptions for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- push_notification_log intentionally has no policies: only the
+-- send-push edge function (service role key, bypasses RLS) touches it.
 
 create index if not exists transactions_user_date_idx on transactions (user_id, date desc);
 create index if not exists transactions_account_idx on transactions (account_id);
