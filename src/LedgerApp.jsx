@@ -56,6 +56,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
   const [restoreError, setRestoreError] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showImport, setShowImport] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const fileInputRef = useRef(null);
   const {
     transactions,
@@ -184,9 +185,18 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
     <div className="min-h-screen">
       <header className="border-b-2 border-(--color-ink) px-5 sm:px-8 py-6">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight truncate">
-            {t("appName")}
-          </h1>
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              aria-label={t("openMenuAria")}
+              className="sm:hidden w-8 h-8 rounded-full border border-(--color-rule) flex items-center justify-center shrink-0 hover:border-(--color-brass) transition-colors"
+            >
+              <span aria-hidden="true" className="text-base leading-none">☰</span>
+            </button>
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight truncate">
+              {t("appName")}
+            </h1>
+          </div>
           <div className="flex items-center gap-2.5 shrink-0">
             <DataMenu
               onImport={() => setShowImport(true)}
@@ -215,7 +225,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
             <p className="text-xs text-(--color-debit)">{restoreError}</p>
           </div>
         )}
-        <nav className="max-w-5xl mx-auto flex gap-1 mt-5 -mb-6 overflow-x-auto">
+        <nav className="max-w-5xl mx-auto hidden sm:flex gap-1 mt-5 -mb-6 overflow-x-auto">
           {TAB_IDS.map((id) => (
             <button
               key={id}
@@ -231,6 +241,52 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
           ))}
         </nav>
       </header>
+
+      {/* Mobile nav drawer — always mounted so the slide transition can play;
+          visibility/interactivity toggled via classes, and the whole thing
+          is hidden entirely at sm+ so desktop is untouched. */}
+      <div
+        onClick={() => setMobileNavOpen(false)}
+        className={`sm:hidden fixed inset-0 z-50 bg-(--color-ink)/40 transition-opacity duration-300 ${
+          mobileNavOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        <nav
+          onClick={(e) => e.stopPropagation()}
+          className={`mobile-nav-panel fixed top-0 start-0 h-full w-72 max-w-[80vw] bg-(--color-paper) border-e border-(--color-rule) shadow-lg flex flex-col ${
+            mobileNavOpen ? "mobile-nav-open" : ""
+          }`}
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-(--color-rule) shrink-0">
+            <h2 className="font-serif text-lg font-semibold tracking-tight">{t("appName")}</h2>
+            <button
+              onClick={() => setMobileNavOpen(false)}
+              aria-label={t("closeMenuAria")}
+              className="text-(--color-ink-soft) hover:text-(--color-ink) text-sm"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto py-2">
+            {TAB_IDS.map((id) => (
+              <button
+                key={id}
+                onClick={() => {
+                  setTab(id);
+                  setMobileNavOpen(false);
+                }}
+                className={`w-full text-start px-5 py-3 font-mono text-sm uppercase tracking-widest transition-colors ${
+                  tab === id
+                    ? "text-(--color-ink) bg-(--color-paper-bar) border-e-2 border-(--color-brass)"
+                    : "text-(--color-ink-soft) hover:bg-(--color-paper-bar)/50"
+                }`}
+              >
+                {t(TAB_KEYS[id])}
+              </button>
+            ))}
+          </div>
+        </nav>
+      </div>
 
       <main key={tab} className="max-w-5xl mx-auto px-5 sm:px-8 py-8 animate-fade-in-up">
         {tab === "ledger" && (

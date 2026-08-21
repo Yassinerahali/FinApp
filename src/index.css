@@ -68,6 +68,26 @@ body {
   text-align: right;
 }
 
+/* Mobile nav drawer: slides in from the "start" edge — left in LTR,
+   right in RTL. Only the closed-state offset differs by direction;
+   the open state is always translateX(0) either way. */
+.mobile-nav-panel {
+  transform: translateX(-100%);
+  transition: transform 0.25s ease-out;
+}
+.mobile-nav-panel.mobile-nav-open {
+  transform: translateX(0);
+}
+[dir="rtl"] .mobile-nav-panel {
+  transform: translateX(100%);
+}
+/* Explicit, since [dir="rtl"] .mobile-nav-panel and
+   .mobile-nav-panel.mobile-nav-open have equal specificity — without
+   this, which one wins would depend on source order alone. */
+[dir="rtl"] .mobile-nav-panel.mobile-nav-open {
+  transform: translateX(0);
+}
+
 ::selection {
   background-color: var(--color-brass);
   color: var(--color-paper);
