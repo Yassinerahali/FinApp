@@ -3,6 +3,8 @@ import { useLanguage } from "../lib/i18n/LanguageContext";
 import { displayName, initials, avatarUrl } from "../lib/profile";
 import { usePushSubscription } from "../hooks/usePushSubscription";
 import { sendTestPush } from "../lib/push";
+import LanguageSwitcher from "./LanguageSwitcher";
+import ThemeSwitcher from "./ThemeSwitcher";
 
 export default function ProfileMenu({ user, updateProfile, uploadAvatar, signOut }) {
   const { t } = useLanguage();
@@ -183,6 +185,11 @@ export default function ProfileMenu({ user, updateProfile, uploadAvatar, signOut
               {saving ? t("pleaseWait") : t("saveProfile")}
             </button>
           </form>
+
+          <div className="mt-4 pt-4 border-t border-(--color-rule) flex items-center justify-between gap-3">
+            <LanguageSwitcher />
+            <ThemeSwitcher />
+          </div>
 
           {push.supported && (
             <div className="mt-4 pt-4 border-t border-(--color-rule)">

@@ -26,10 +26,9 @@ import LoansPanel from "./components/LoansPanel";
 import SpendingInsight from "./components/SpendingInsight";
 import AssistantChat from "./components/AssistantChat";
 import ImportWizard from "./components/ImportWizard";
+import DataMenu from "./components/DataMenu";
 import ProfileMenu from "./components/ProfileMenu";
 import NotificationBell from "./components/NotificationBell";
-import LanguageSwitcher from "./components/LanguageSwitcher";
-import ThemeSwitcher from "./components/ThemeSwitcher";
 
 function currentMonthKey() {
   const d = new Date();
@@ -184,35 +183,17 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
   return (
     <div className="min-h-screen">
       <header className="border-b-2 border-(--color-ink) px-5 sm:px-8 py-6">
-        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight truncate">
             {t("appName")}
           </h1>
-          <div className="flex items-center gap-4 shrink-0 flex-wrap">
-            <button
-              onClick={() => setShowImport(true)}
-              className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-ink) underline decoration-(--color-rule) underline-offset-4"
-            >
-              {t("importButton")}
-            </button>
-            <button
-              onClick={() => exportTransactionsCSV(transactions, accountsById)}
-              className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-ink) underline decoration-(--color-rule) underline-offset-4"
-            >
-              {t("exportCsv")}
-            </button>
-            <button
-              onClick={() => exportFullBackup({ transactions, budgets, recurringRules: rules })}
-              className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-ink) underline decoration-(--color-rule) underline-offset-4"
-            >
-              {t("backupJson")}
-            </button>
-            <button
-              onClick={handleRestoreClick}
-              className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-ink) underline decoration-(--color-rule) underline-offset-4"
-            >
-              {t("restoreBackup")}
-            </button>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <DataMenu
+              onImport={() => setShowImport(true)}
+              onExportCsv={() => exportTransactionsCSV(transactions, accountsById)}
+              onBackupJson={() => exportFullBackup({ transactions, budgets, recurringRules: rules })}
+              onRestoreClick={handleRestoreClick}
+            />
             <input
               ref={fileInputRef}
               type="file"
@@ -220,9 +201,6 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
               onChange={handleRestoreFile}
               className="hidden"
             />
-            <span className="hidden sm:inline text-(--color-rule)">|</span>
-            <LanguageSwitcher />
-            <ThemeSwitcher />
             <NotificationBell notifications={notifications} onNavigate={setTab} />
             <ProfileMenu
               user={user}
