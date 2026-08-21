@@ -49,6 +49,12 @@ body {
   );
   background-attachment: local;
   transition: background-color 0.15s ease, color 0.15s ease;
+  /* Leaves room for the iOS status bar when running as an installed
+     PWA with a translucent status bar (see apple-mobile-web-app-
+     status-bar-style in index.html) — resolves to 0 everywhere else
+     (desktop, Android, Safari-tab-not-installed), so this is a no-op
+     outside that one case. */
+  padding-top: env(safe-area-inset-top);
 }
 
 .tabular {

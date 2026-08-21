@@ -257,7 +257,10 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
             mobileNavOpen ? "mobile-nav-open" : ""
           }`}
         >
-          <div className="flex items-center justify-between px-5 py-4 border-b border-(--color-rule) shrink-0">
+          <div
+            className="flex items-center justify-between px-5 py-4 border-b border-(--color-rule) shrink-0"
+            style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))" }}
+          >
             <h2 className="font-serif text-lg font-semibold tracking-tight">{t("appName")}</h2>
             <button
               onClick={() => setMobileNavOpen(false)}
