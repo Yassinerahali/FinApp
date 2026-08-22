@@ -19,6 +19,10 @@
 
 html, body {
   background-color: var(--color-paper);
+  /* Safety net: nothing should ever be able to widen the page itself and
+     shift it sideways (e.g. an unconstrained table) — anything that
+     needs horizontal scrolling should scroll internally instead. */
+  overflow-x: hidden;
 }
 
 /* Dark mode: same semantic variable names, inverted values. Since every
