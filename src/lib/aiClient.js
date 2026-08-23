@@ -31,10 +31,12 @@ export async function getSpendingInsight(summary, lang) {
 
 /**
  * Sends the conversation plus a live financial data snapshot to the chat
- * assistant. Returns { reply, action } — action is either null or a
- * proposed { type: "create_goal", name, target_amount, target_date }
- * that the UI should show as a confirm-before-creating card, never
- * apply automatically.
+ * assistant. Returns { reply, action, suggestions } — action is either
+ * null or a proposed { type: "create_goal", name, target_amount,
+ * target_date } that the UI should show as a confirm-before-creating
+ * card, never apply automatically. suggestions is an array of 0-3 short
+ * follow-up questions the model thinks the user might want to ask next,
+ * meant to render as tappable quick-reply chips.
  */
 export async function chatWithAssistant(messages, context, lang) {
   const { data, error } = await supabase.functions.invoke("ai-assist", {
@@ -42,7 +44,7 @@ export async function chatWithAssistant(messages, context, lang) {
   });
   if (error) throw new Error(await extractFunctionError(error));
   if (data?.error) throw new Error(data.error);
-  return { reply: data.reply, action: data.action };
+  return { reply: data.reply, action: data.action, suggestions: data.suggestions || [] };
 }
 
 // supabase-js's FunctionsHttpError wraps the actual response; try to pull

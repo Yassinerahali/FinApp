@@ -128,7 +128,14 @@ Data (amounts in MAD): ${JSON.stringify(summary)}`;
 function buildChatSystemPrompt(context, lang) {
   const languageName = { en: "English", fr: "French", ar: "Arabic" }[lang] || "English";
 
-  return `Your name is RICO, the built-in financial assistant inside "CHOUMCHOUM", a personal ledger app. Respond in ${languageName}, in a warm but concise way — a few sentences, not an essay, unless the person clearly wants detail.
+  return `Your name is RICO, the friendly financial assistant built into "CHOUMCHOUM", a personal ledger app. You're talking with the person whose money this actually is — be warm, genuine, and a little conversational, like a sharp friend who happens to be good with numbers, not a corporate script. Respond in ${languageName}.
+
+Personality notes:
+- Vary your phrasing — don't open every reply the same way, don't just restate numbers back at them robotically.
+- If something's genuinely good news (a goal getting close, spending down from last month), sound pleased about it, briefly — one natural phrase is plenty, don't gush.
+- If something's rough (over budget, a payment overdue), be direct and kind, not clinical or alarmed. No lectures.
+- A well-placed emoji here and there is fine; don't sprinkle one on every message.
+- Keep replies to a few sentences unless the person clearly wants more detail.
 
 You are given below a JSON snapshot of the user's REAL current financial data (amounts in MAD). This is the only source of truth you have:
 - Only answer questions about their finances using this data.
@@ -141,6 +148,11 @@ You are given below a JSON snapshot of the user's REAL current financial data (a
 \`\`\`
   Only include this block when actually proposing to create the goal right now (the app will ask the user to confirm before creating it) — never for hypothetical discussion, and never more than one per reply.
 - You cannot directly create transactions, change budgets, or modify anything else — only propose goals as described above. If asked to do something else you can't do, say so and suggest which tab of the app they'd use instead.
+- After your reply, if there are 2-3 natural follow-up questions the person might want to ask next, add a second fenced block on its own line, formatted EXACTLY like this:
+\`\`\`suggestions
+["short question 1", "short question 2"]
+\`\`\`
+  Each string should be phrased as something the *person* would say to you next (first person, e.g. "How much did I spend on transport?"), under 8 words, in ${languageName}. Skip this block entirely if nothing natural comes to mind — don't force it every time.
 
 Data snapshot:
 ${JSON.stringify(context)}`;
@@ -177,6 +189,25 @@ function extractAction(text) {
   return { reply: cleanedReply, action: null };
 }
 
+function extractSuggestions(text) {
+  const match = text.match(/```suggestions\s*([\s\S]*?)```/);
+  if (!match) return { reply: text.trim(), suggestions: [] };
+
+  const cleanedReply = text.replace(match[0], "").trim();
+  try {
+    const parsed = JSON.parse(match[1].trim());
+    if (Array.isArray(parsed)) {
+      const safe = parsed
+        .filter((s) => typeof s === "string" && s.trim().length > 0 && s.length <= 120)
+        .slice(0, 3);
+      return { reply: cleanedReply, suggestions: safe };
+    }
+  } catch {
+    // Malformed suggestions block — fall through and just show the cleaned text.
+  }
+  return { reply: cleanedReply, suggestions: [] };
+}
+
 async function handleChat(body) {
   const { messages, context, lang } = body;
   if (!Array.isArray(messages) || messages.length === 0) {
@@ -195,7 +226,9 @@ async function handleChat(body) {
   ];
 
   const raw = await callGroqMessages(fullMessages, { maxTokens: 500 });
-  return extractAction(raw);
+  const { reply: afterAction, action } = extractAction(raw);
+  const { reply: finalReply, suggestions } = extractSuggestions(afterAction);
+  return { reply: finalReply, action, suggestions };
 }
 
 Deno.serve(async (req) => {

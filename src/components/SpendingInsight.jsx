@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 import { getSpendingInsight } from "../lib/aiClient";
+import { formatAmount } from "../lib/format";
 
 function lastNMonthKeys(n) {
   const keys = [];
@@ -41,13 +42,25 @@ export default function SpendingInsight({ transactions, months = 6 }) {
   const [insight, setInsight] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [barsGrown, setBarsGrown] = useState(false);
+
+  const summary = useMemo(
+    () => buildSummary(transactions, months, catLabel),
+    [transactions, months, catLabel]
+  );
+  const hasData = summary.months.some((m) => m.income > 0 || m.expense > 0);
+  const maxCategoryAmount = Math.max(1, ...summary.topCategories.map((c) => c.amount));
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setBarsGrown(true));
+    return () => cancelAnimationFrame(id);
+  }, [summary.topCategories.length]);
 
   async function handleGenerate() {
     setLoading(true);
     setError("");
     try {
-      const summary = buildSummary(transactions, months, catLabel);
-      if (summary.months.every((m) => m.income === 0 && m.expense === 0)) {
+      if (!hasData) {
         setError(t("insightNoData"));
         return;
       }
@@ -62,7 +75,7 @@ export default function SpendingInsight({ transactions, months = 6 }) {
 
   return (
     <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6 animate-fade-in-up">
-      <div className="flex items-baseline justify-between mb-3">
+      <div className="flex items-baseline justify-between mb-4">
         <h2 className="font-serif text-lg font-semibold tracking-tight">✨ {t("insightTitle")}</h2>
         {insight && !loading && (
           <button
@@ -74,8 +87,35 @@ export default function SpendingInsight({ transactions, months = 6 }) {
         )}
       </div>
 
+      {hasData && summary.topCategories.length > 0 && (
+        <div className="mb-5">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) mb-3">
+            {t("insightTopCategories", { n: months })}
+          </p>
+          <ul className="space-y-2.5">
+            {summary.topCategories.map((c, index) => (
+              <li key={c.category}>
+                <div className="flex items-baseline justify-between mb-1 text-sm">
+                  <span>{c.category}</span>
+                  <span className="font-mono tabular text-(--color-ink-soft)">{formatAmount(c.amount)}</span>
+                </div>
+                <div className="h-1.5 bg-(--color-paper-bar) overflow-hidden">
+                  <div
+                    className="h-full bg-(--color-brass) transition-all duration-500 ease-out"
+                    style={{
+                      width: barsGrown ? `${Math.max((c.amount / maxCategoryAmount) * 100, 2)}%` : "0%",
+                      transitionDelay: `${index * 60}ms`,
+                    }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {!insight && !loading && (
-        <div>
+        <div className={hasData && summary.topCategories.length > 0 ? "border-t border-(--color-rule) pt-4" : ""}>
           <p className="text-sm text-(--color-ink-soft) mb-4">{t("insightPrompt")}</p>
           <button
             onClick={handleGenerate}
@@ -87,7 +127,7 @@ export default function SpendingInsight({ transactions, months = 6 }) {
       )}
 
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-(--color-ink-soft)">
+        <div className="flex items-center gap-2 text-sm text-(--color-ink-soft) border-t border-(--color-rule) pt-4">
           <span className="flex gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-(--color-brass) animate-bounce" style={{ animationDelay: "0ms" }} />
             <span className="w-1.5 h-1.5 rounded-full bg-(--color-brass) animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -98,7 +138,7 @@ export default function SpendingInsight({ transactions, months = 6 }) {
       )}
 
       {insight && !loading && (
-        <p className="text-sm leading-relaxed animate-fade-in-up">{insight}</p>
+        <p className="text-sm leading-relaxed animate-fade-in-up border-t border-(--color-rule) pt-4">{insight}</p>
       )}
 
       {error && <p className="mt-3 text-sm text-(--color-debit) font-medium">{error}</p>}

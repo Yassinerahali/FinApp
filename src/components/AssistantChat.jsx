@@ -4,6 +4,9 @@ import { chatWithAssistant } from "../lib/aiClient";
 import { buildChatContext } from "../lib/chatContext";
 import { formatAmount, formatDate } from "../lib/format";
 
+const GREETING_KEYS = ["assistantGreeting", "assistantGreeting2", "assistantGreeting3"];
+const STARTER_KEYS = ["assistantStarter1", "assistantStarter2", "assistantStarter3"];
+
 export default function AssistantChat({
   transactions,
   budgets,
@@ -25,9 +28,18 @@ export default function AssistantChat({
 
   useEffect(() => {
     if (open && messages.length === 0) {
-      setMessages([{ role: "assistant", content: t("assistantGreeting"), action: null }]);
+      const greetingKey = GREETING_KEYS[Math.floor(Math.random() * GREETING_KEYS.length)];
+      setMessages([
+        {
+          role: "assistant",
+          content: t(greetingKey),
+          action: null,
+          suggestions: STARTER_KEYS.map((k) => t(k)),
+        },
+      ]);
     }
-  }, [open, messages.length, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, messages.length]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -45,12 +57,10 @@ export default function AssistantChat({
     }
   }, [messages, loading]);
 
-  async function handleSend(e) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || loading) return;
+  async function sendMessage(text) {
+    if (!text.trim() || loading) return;
 
-    const userMessage = { role: "user", content: text, action: null };
+    const userMessage = { role: "user", content: text.trim(), action: null, suggestions: [] };
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     setInput("");
@@ -60,13 +70,25 @@ export default function AssistantChat({
     try {
       const context = buildChatContext({ transactions, budgets, goals, loans, accounts, rules, catLabel });
       const apiMessages = nextMessages.map((m) => ({ role: m.role, content: m.content }));
-      const { reply, action } = await chatWithAssistant(apiMessages, context, lang);
-      setMessages((prev) => [...prev, { role: "assistant", content: reply, action, actionStatus: "pending" }]);
+      const { reply, action, suggestions } = await chatWithAssistant(apiMessages, context, lang);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: reply, action, actionStatus: "pending", suggestions: suggestions || [] },
+      ]);
     } catch (err) {
       setError(err.message || t("suggestError"));
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    sendMessage(input);
+  }
+
+  function handleChipClick(suggestion) {
+    sendMessage(suggestion);
   }
 
   async function handleCreateGoal(messageIndex, action) {
@@ -110,51 +132,69 @@ export default function AssistantChat({
           </div>
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-            {messages.map((m, i) => (
-              <div key={i} className="animate-fade-in-up">
-                <div
-                  className={`text-sm leading-snug rounded px-3 py-2 max-w-[85%] ${
-                    m.role === "user"
-                      ? "bg-(--color-ink) text-(--color-paper) ms-auto"
-                      : "bg-(--color-paper-bar)"
-                  }`}
-                >
-                  {m.content}
-                </div>
-                {m.action && m.actionStatus !== "dismissed" && (
-                  <div className="mt-2 border border-(--color-rule) bg-(--color-paper) p-3 max-w-[85%] animate-scale-in">
-                    <p className="text-xs font-mono uppercase tracking-widest text-(--color-ink-soft) mb-1">
-                      {t("assistantProposedGoal")}
-                    </p>
-                    <p className="text-sm font-semibold">{m.action.name}</p>
-                    <p className="text-xs text-(--color-ink-soft) font-mono tabular">
-                      {formatAmount(m.action.target_amount)}
-                      {m.action.target_date ? ` · ${formatDate(m.action.target_date, locale)}` : ""}
-                    </p>
-                    {m.actionStatus === "created" ? (
-                      <p className="mt-2 text-xs text-(--color-credit) font-medium">{t("assistantGoalCreated")}</p>
-                    ) : (
-                      <div className="flex gap-2 mt-2">
-                        <button
-                          onClick={() => handleDismissAction(i)}
-                          disabled={m.actionStatus === "creating"}
-                          className="flex-1 border border-(--color-rule) text-(--color-ink-soft) py-1.5 font-mono text-[10px] uppercase tracking-widest hover:border-(--color-ink) hover:text-(--color-ink) transition-colors disabled:opacity-60"
-                        >
-                          {t("dismiss")}
-                        </button>
-                        <button
-                          onClick={() => handleCreateGoal(i, m.action)}
-                          disabled={m.actionStatus === "creating"}
-                          className="flex-1 bg-(--color-ink) text-(--color-paper) py-1.5 font-mono text-[10px] uppercase tracking-widest hover:bg-(--color-brass-dark) transition-colors disabled:opacity-60"
-                        >
-                          {m.actionStatus === "creating" ? t("pleaseWait") : t("addGoal")}
-                        </button>
-                      </div>
-                    )}
+            {messages.map((m, i) => {
+              const isLast = i === messages.length - 1;
+              return (
+                <div key={i} className="animate-fade-in-up">
+                  <div
+                    className={`text-sm leading-snug rounded px-3 py-2 max-w-[85%] ${
+                      m.role === "user"
+                        ? "bg-(--color-ink) text-(--color-paper) ms-auto"
+                        : "bg-(--color-paper-bar)"
+                    }`}
+                  >
+                    {m.content}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {m.action && m.actionStatus !== "dismissed" && (
+                    <div className="mt-2 border border-(--color-rule) bg-(--color-paper) p-3 max-w-[85%] animate-scale-in">
+                      <p className="text-xs font-mono uppercase tracking-widest text-(--color-ink-soft) mb-1">
+                        {t("assistantProposedGoal")}
+                      </p>
+                      <p className="text-sm font-semibold">{m.action.name}</p>
+                      <p className="text-xs text-(--color-ink-soft) font-mono tabular">
+                        {formatAmount(m.action.target_amount)}
+                        {m.action.target_date ? ` · ${formatDate(m.action.target_date, locale)}` : ""}
+                      </p>
+                      {m.actionStatus === "created" ? (
+                        <p className="mt-2 text-xs text-(--color-credit) font-medium">{t("assistantGoalCreated")}</p>
+                      ) : (
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={() => handleDismissAction(i)}
+                            disabled={m.actionStatus === "creating"}
+                            className="flex-1 border border-(--color-rule) text-(--color-ink-soft) py-1.5 font-mono text-[10px] uppercase tracking-widest hover:border-(--color-ink) hover:text-(--color-ink) transition-colors disabled:opacity-60"
+                          >
+                            {t("dismiss")}
+                          </button>
+                          <button
+                            onClick={() => handleCreateGoal(i, m.action)}
+                            disabled={m.actionStatus === "creating"}
+                            className="flex-1 bg-(--color-ink) text-(--color-paper) py-1.5 font-mono text-[10px] uppercase tracking-widest hover:bg-(--color-brass-dark) transition-colors disabled:opacity-60"
+                          >
+                            {m.actionStatus === "creating" ? t("pleaseWait") : t("addGoal")}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {m.role === "assistant" && isLast && !loading && m.suggestions?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {m.suggestions.map((s, si) => (
+                        <button
+                          key={si}
+                          onClick={() => handleChipClick(s)}
+                          className="text-xs border border-(--color-rule) text-(--color-ink-soft) px-2.5 py-1 rounded-full hover:border-(--color-brass) hover:text-(--color-brass-dark) transition-colors animate-fade-in-up"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {loading && (
               <div className="flex gap-1 px-3 py-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-(--color-brass) animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -165,7 +205,7 @@ export default function AssistantChat({
             {error && <p className="text-xs text-(--color-debit) font-medium">{error}</p>}
           </div>
 
-          <form onSubmit={handleSend} className="border-t border-(--color-rule) p-3 flex gap-2 shrink-0">
+          <form onSubmit={handleSubmit} className="border-t border-(--color-rule) p-3 flex gap-2 shrink-0">
             <input
               type="text"
               value={input}
