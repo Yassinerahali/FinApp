@@ -183,7 +183,10 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
 
   return (
     <div className="min-h-screen">
-      <header className="border-b-2 border-(--color-ink) px-5 sm:px-8 py-6">
+      <header
+        className="sticky z-20 bg-(--color-paper) border-b-2 border-(--color-ink) px-5 sm:px-8 py-6"
+        style={{ top: "env(safe-area-inset-top)" }}
+      >
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
