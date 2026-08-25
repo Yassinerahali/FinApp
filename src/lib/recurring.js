@@ -92,6 +92,35 @@ export function nextDueDate(rule, todayISO) {
   return candidateISO;
 }
 
+/**
+ * Every occurrence date (ISO) for a monthly rule from today through
+ * toISO (inclusive) — for a forward-looking forecast, unlike
+ * dueOccurrences (catch-up generation) or nextDueDate (just the single
+ * next one). Reuses the same nextDueDate/isoFor logic already verified
+ * elsewhere, just repeated forward until past the window.
+ */
+export function projectFutureOccurrences(rule, fromISO, toISO) {
+  const occurrences = [];
+  let cursorISO = nextDueDate(rule, fromISO);
+
+  // Safety cap so a bad rule can't loop forever.
+  for (let i = 0; i < 36; i++) {
+    if (cursorISO > toISO) break;
+    occurrences.push(cursorISO);
+
+    const d = new Date(cursorISO + "T00:00:00");
+    let year = d.getFullYear();
+    let month = d.getMonth() + 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+    cursorISO = isoFor(year, month, rule.dayOfMonth);
+  }
+
+  return occurrences;
+}
+
 /** Convert a Supabase row (snake_case) into the app's rule shape (camelCase). */
 export function ruleFromDb(row) {
   return {

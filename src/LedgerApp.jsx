@@ -20,6 +20,7 @@ import RecurringPanel from "./components/RecurringPanel";
 import TrendsChart from "./components/TrendsChart";
 import AccountsPanel from "./components/AccountsPanel";
 import NetWorthSummary from "./components/NetWorthSummary";
+import CashFlowForecast from "./components/CashFlowForecast";
 import GoalsPanel from "./components/GoalsPanel";
 import CategoriesPanel from "./components/CategoriesPanel";
 import LoansPanel from "./components/LoansPanel";
@@ -359,6 +360,13 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
         {tab === "accounts" && (
           <div className="max-w-xl space-y-6">
             <NetWorthSummary transactions={transactions} accounts={accounts} />
+            <CashFlowForecast
+              transactions={transactions}
+              accounts={accounts}
+              rules={rules}
+              loans={loans}
+              catLabel={catLabel}
+            />
             <AccountsPanel
               accounts={accounts}
               addAccount={addAccount}
