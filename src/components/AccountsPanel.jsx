@@ -9,11 +9,20 @@ const KIND_LABEL_KEYS = {
   card: "accountKindCard",
   other: "accountKindOther",
 };
+const CURRENCIES = ["MAD", "EUR", "USD"];
 
-export default function AccountsPanel({ accounts, addAccount, renameAccount, updateOpeningBalance, deleteAccount }) {
+export default function AccountsPanel({
+  accounts,
+  addAccount,
+  renameAccount,
+  updateOpeningBalance,
+  updateCurrency,
+  deleteAccount,
+}) {
   const { t } = useLanguage();
   const [name, setName] = useState("");
   const [kind, setKind] = useState("cash");
+  const [currency, setCurrency] = useState("MAD");
   const [openingBalance, setOpeningBalance] = useState("");
   const [renamingId, setRenamingId] = useState(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -30,7 +39,8 @@ export default function AccountsPanel({ accounts, addAccount, renameAccount, upd
     const { error: addError } = await addAccount(
       trimmed,
       kind,
-      Number.isNaN(parsedBalance) ? 0 : parsedBalance
+      Number.isNaN(parsedBalance) ? 0 : parsedBalance,
+      currency
     );
     if (addError) {
       setError(addError.message || t("accountErrorGeneric"));
@@ -38,6 +48,7 @@ export default function AccountsPanel({ accounts, addAccount, renameAccount, upd
     }
     setName("");
     setKind("cash");
+    setCurrency("MAD");
     setOpeningBalance("");
   }
 
@@ -98,6 +109,18 @@ export default function AccountsPanel({ accounts, addAccount, renameAccount, upd
               </option>
             ))}
           </select>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            aria-label={t("currency")}
+            className="border-b border-(--color-ink) bg-transparent py-1.5 text-sm outline-none font-mono"
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="mt-4">
@@ -115,7 +138,7 @@ export default function AccountsPanel({ accounts, addAccount, renameAccount, upd
               onChange={(e) => setOpeningBalance(e.target.value)}
               className="w-full bg-transparent py-1.5 font-mono text-sm tabular outline-none placeholder:text-(--color-rule)"
             />
-            <span className="font-mono text-xs text-(--color-ink-soft) ps-1">MAD</span>
+            <span className="font-mono text-xs text-(--color-ink-soft) ps-1">{currency}</span>
           </div>
           <p className="mt-1.5 text-xs text-(--color-ink-soft)">{t("startingBalanceHint")}</p>
         </div>
@@ -164,7 +187,7 @@ export default function AccountsPanel({ accounts, addAccount, renameAccount, upd
                       </span>
                     </button>
                   )}
-                  <div className="mt-1">
+                  <div className="mt-1 flex items-center gap-3 flex-wrap">
                     {editingBalanceId === a.id ? (
                       <input
                         autoFocus
@@ -181,9 +204,21 @@ export default function AccountsPanel({ accounts, addAccount, renameAccount, upd
                         onClick={() => startEditBalance(a)}
                         className="font-mono text-xs text-(--color-ink-soft) hover:text-(--color-brass-dark) transition-colors"
                       >
-                        {t("startingBalance")}: {formatAmount(a.opening_balance || 0)}
+                        {t("startingBalance")}: {formatAmount(a.opening_balance || 0, a.currency)}
                       </button>
                     )}
+                    <select
+                      value={a.currency || "MAD"}
+                      onChange={(e) => updateCurrency(a.id, e.target.value)}
+                      aria-label={t("currency")}
+                      className="font-mono text-xs text-(--color-ink-soft) hover:text-(--color-brass-dark) bg-transparent border-none outline-none cursor-pointer"
+                    >
+                      {CURRENCIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <button

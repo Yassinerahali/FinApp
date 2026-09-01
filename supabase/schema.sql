@@ -11,6 +11,7 @@ create table if not exists accounts (
   name text not null,
   kind text not null default 'cash' check (kind in ('cash', 'bank', 'card', 'other')),
   opening_balance numeric not null default 0,
+  currency text not null default 'MAD' check (currency in ('MAD', 'EUR', 'USD')),
   created_at timestamptz not null default now()
 );
 

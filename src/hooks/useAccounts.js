@@ -28,7 +28,7 @@ export function useAccounts(userId, defaultName) {
         // default account so the rest of the UI has something to attach to.
         const { data: created } = await supabase
           .from("accounts")
-          .insert({ user_id: userId, name: defaultName, kind: "cash" })
+          .insert({ user_id: userId, name: defaultName, kind: "cash", currency: "MAD" })
           .select()
           .single();
         if (!cancelled && created) {
@@ -50,10 +50,10 @@ export function useAccounts(userId, defaultName) {
   }, [userId]);
 
   const addAccount = useCallback(
-    async (name, kind, openingBalance = 0) => {
+    async (name, kind, openingBalance = 0, currency = "MAD") => {
       const { data, error } = await supabase
         .from("accounts")
-        .insert({ user_id: userId, name, kind, opening_balance: openingBalance || 0 })
+        .insert({ user_id: userId, name, kind, opening_balance: openingBalance || 0, currency })
         .select()
         .single();
       if (!error && data) {
@@ -88,6 +88,18 @@ export function useAccounts(userId, defaultName) {
     }
   }, []);
 
+  const updateCurrency = useCallback(async (id, currency) => {
+    const { data, error } = await supabase
+      .from("accounts")
+      .update({ currency })
+      .eq("id", id)
+      .select()
+      .single();
+    if (!error && data) {
+      setAccounts((prev) => prev.map((a) => (a.id === id ? data : a)));
+    }
+  }, []);
+
   const deleteAccount = useCallback(async (id) => {
     const { error } = await supabase.from("accounts").delete().eq("id", id);
     if (!error) {
@@ -96,5 +108,5 @@ export function useAccounts(userId, defaultName) {
     return { error };
   }, []);
 
-  return { accounts, loading, addAccount, renameAccount, updateOpeningBalance, deleteAccount };
+  return { accounts, loading, addAccount, renameAccount, updateOpeningBalance, updateCurrency, deleteAccount };
 }

@@ -69,7 +69,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
   } = useTransactions(user.id);
   const { budgets, setBudget, replaceAllBudgets } = useBudgets(user.id);
   const { rules, addRule, updateRule, deleteRule, replaceAllRules } = useRecurring(user.id, addTransaction);
-  const { accounts, addAccount, renameAccount, updateOpeningBalance, deleteAccount } = useAccounts(
+  const { accounts, addAccount, renameAccount, updateOpeningBalance, updateCurrency, deleteAccount } = useAccounts(
     user.id,
     t("defaultAccountName")
   );
@@ -86,7 +86,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
   );
 
   const accountsById = useMemo(
-    () => Object.fromEntries(accounts.map((a) => [a.id, a.name])),
+    () => Object.fromEntries(accounts.map((a) => [a.id, { name: a.name, currency: a.currency || "MAD" }])),
     [accounts]
   );
 
@@ -372,6 +372,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
               addAccount={addAccount}
               renameAccount={renameAccount}
               updateOpeningBalance={updateOpeningBalance}
+              updateCurrency={updateCurrency}
               deleteAccount={deleteAccount}
             />
           </div>

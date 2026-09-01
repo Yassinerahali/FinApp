@@ -17,9 +17,19 @@ function buildForecast({ transactions, accounts, rules, loans, catLabel, days })
   const today = todayISO();
   const endISO = addDays(today, days);
 
+  // Recurring bills and loans have no currency of their own (they're
+  // MAD-only, same as budgets/goals) — so this forecast only makes
+  // sense across MAD accounts. Mixing in a EUR/USD account's balance
+  // here would silently produce a meaningless blended number instead.
+  const madAccounts = accounts.filter((a) => (a.currency || "MAD") === "MAD");
+  const madAccountIds = new Set(madAccounts.map((a) => a.id));
+  const hasNonMadAccounts = accounts.some((a) => (a.currency || "MAD") !== "MAD");
+
   const currentBalance =
-    accounts.reduce((sum, a) => sum + (a.opening_balance || 0), 0) +
-    transactions.reduce((sum, tx) => sum + (tx.type === "income" ? tx.amount : -tx.amount), 0);
+    madAccounts.reduce((sum, a) => sum + (a.opening_balance || 0), 0) +
+    transactions
+      .filter((tx) => !tx.account_id || madAccountIds.has(tx.account_id))
+      .reduce((sum, tx) => sum + (tx.type === "income" ? tx.amount : -tx.amount), 0);
 
   const events = [];
 
@@ -63,6 +73,7 @@ function buildForecast({ transactions, accounts, rules, loans, catLabel, days })
     projectedBalance: running,
     events: withRunning,
     dipDate,
+    hasNonMadAccounts,
   };
 }
 
@@ -100,6 +111,10 @@ export default function CashFlowForecast({ transactions, accounts, rules, loans,
           ))}
         </div>
       </div>
+
+      {forecast.hasNonMadAccounts && (
+        <p className="text-xs text-(--color-ink-soft) mb-4">{t("forecastMadOnly")}</p>
+      )}
 
       <dl className="space-y-2.5 mb-4">
         <div className="flex items-baseline justify-between">

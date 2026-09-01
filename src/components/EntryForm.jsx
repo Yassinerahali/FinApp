@@ -48,6 +48,8 @@ export default function EntryForm({
   }, [editing, defaultAccountId]);
 
   const categories = allCategories.filter((c) => c.type === type);
+  const selectedAccount = accounts.find((a) => a.id === accountId);
+  const amountCurrency = selectedAccount?.currency || "MAD";
 
   function handleTypeChange(nextType) {
     setType(nextType);
@@ -163,7 +165,7 @@ export default function EntryForm({
               onChange={(e) => setAmount(e.target.value)}
               className="w-full bg-transparent py-1.5 font-mono text-xl tabular outline-none placeholder:text-(--color-rule)"
             />
-            <span className="font-mono text-xs text-(--color-ink-soft) ps-1">MAD</span>
+            <span className="font-mono text-xs text-(--color-ink-soft) ps-1">{amountCurrency}</span>
           </div>
         </div>
 
@@ -237,7 +239,7 @@ export default function EntryForm({
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {a.name} ({a.currency || "MAD"})
                 </option>
               ))}
             </select>

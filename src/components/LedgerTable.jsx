@@ -35,14 +35,15 @@ export default function LedgerTable({ transactions, onDelete, onEdit, accountsBy
                   tx.type === "income" ? "text-(--color-credit)" : "text-(--color-debit)"
                 }`}
               >
-                {tx.type === "income" ? "+" : "−"}{formatAmount(tx.amount)}
+                {tx.type === "income" ? "+" : "−"}
+                {formatAmount(tx.amount, tx.account_id && accountsById[tx.account_id]?.currency)}
               </span>
             </div>
             <div className="flex items-end justify-between gap-3 mt-1.5">
               <div className="min-w-0">
                 <p className="text-xs text-(--color-ink-soft) truncate">
                   {catLabel(tx.category)}
-                  {tx.account_id && accountsById[tx.account_id] && ` · ${accountsById[tx.account_id]}`}
+                  {tx.account_id && accountsById[tx.account_id] && ` · ${accountsById[tx.account_id].name}`}
                 </p>
                 <p className="text-sm truncate">
                   {tx.note || <span className="text-(--color-rule)">—</span>}
@@ -97,7 +98,7 @@ export default function LedgerTable({ transactions, onDelete, onEdit, accountsBy
                 <td className="py-3 px-5 text-(--color-ink-soft)">
                   {catLabel(tx.category)}
                   {tx.account_id && accountsById[tx.account_id] && (
-                    <span className="text-(--color-rule)"> · {accountsById[tx.account_id]}</span>
+                    <span className="text-(--color-rule)"> · {accountsById[tx.account_id].name}</span>
                   )}
                 </td>
                 <td className="py-3 px-5">
@@ -108,7 +109,8 @@ export default function LedgerTable({ transactions, onDelete, onEdit, accountsBy
                     tx.type === "income" ? "text-(--color-credit)" : "text-(--color-debit)"
                   }`}
                 >
-                  {tx.type === "income" ? "+" : "−"}{formatAmount(tx.amount)}
+                  {tx.type === "income" ? "+" : "−"}
+                  {formatAmount(tx.amount, tx.account_id && accountsById[tx.account_id]?.currency)}
                 </td>
                 <td className="pe-3">
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">

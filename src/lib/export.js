@@ -19,12 +19,13 @@ function csvEscape(value) {
 }
 
 export function exportTransactionsCSV(transactions, accountsById = {}) {
-  const header = ["date", "type", "category", "account", "amount", "note"];
+  const header = ["date", "type", "category", "account", "currency", "amount", "note"];
   const rows = transactions.map((t) => [
     t.date,
     t.type,
     t.category,
-    (t.account_id && accountsById[t.account_id]) || "",
+    (t.account_id && accountsById[t.account_id]?.name) || "",
+    (t.account_id && accountsById[t.account_id]?.currency) || "MAD",
     t.amount,
     t.note || "",
   ]);

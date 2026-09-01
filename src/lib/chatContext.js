@@ -4,6 +4,12 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
+function mapValues(obj, fn) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) out[k] = fn(v);
+  return out;
+}
+
 function monthKeyOffset(offset) {
   const d = new Date();
   d.setMonth(d.getMonth() + offset);
@@ -43,14 +49,32 @@ export function buildChatContext({ transactions, budgets, goals, loans, accounts
   const lastMonth = monthSummary(transactions, lastMonthKey, catLabel);
 
   const accountBalances = new Map(accounts.map((a) => [a.id, a.opening_balance || 0]));
-  let netWorth = accounts.reduce((sum, a) => sum + (a.opening_balance || 0), 0);
+  const accountCurrency = new Map(accounts.map((a) => [a.id, a.currency || "MAD"]));
+  const totalsByCurrency = {};
+  for (const a of accounts) {
+    const curr = a.currency || "MAD";
+    totalsByCurrency[curr] = (totalsByCurrency[curr] || 0) + (a.opening_balance || 0);
+  }
   for (const tx of transactions) {
     const signed = tx.type === "income" ? tx.amount : -tx.amount;
-    netWorth += signed;
     if (tx.account_id && accountBalances.has(tx.account_id)) {
       accountBalances.set(tx.account_id, accountBalances.get(tx.account_id) + signed);
+      const curr = accountCurrency.get(tx.account_id) || "MAD";
+      totalsByCurrency[curr] = (totalsByCurrency[curr] || 0) + signed;
+    } else {
+      // Unassigned transactions fold into MAD, same as everywhere else
+      // in the app.
+      totalsByCurrency.MAD = (totalsByCurrency.MAD || 0) + signed;
     }
   }
+  const currencyKeys = Object.keys(totalsByCurrency);
+  // A single netWorth figure only makes sense if everything's in one
+  // currency (the common case) — summing different currencies together
+  // would just produce a meaningless number. With more than one
+  // currency in play, give RICO the breakdown instead and let it
+  // reason from the per-account currencies already included below.
+  const netWorth = currencyKeys.length <= 1 ? round2(totalsByCurrency[currencyKeys[0]] || 0) : null;
+  const netWorthByCurrency = currencyKeys.length > 1 ? mapValues(totalsByCurrency, round2) : null;
 
   return {
     today: todayISO(),
@@ -77,8 +101,13 @@ export function buildChatContext({ transactions, budgets, goals, loans, accounts
         remaining: l.remaining_amount,
         dueDate: l.due_date,
       })),
-    accounts: accounts.map((a) => ({ name: a.name, balance: round2(accountBalances.get(a.id) || 0) })),
-    netWorth: round2(netWorth),
+    accounts: accounts.map((a) => ({
+      name: a.name,
+      balance: round2(accountBalances.get(a.id) || 0),
+      currency: a.currency || "MAD",
+    })),
+    netWorth,
+    netWorthByCurrency,
     recurringBills: rules.map((r) => ({
       name: r.note || catLabel(r.category),
       amount: r.amount,

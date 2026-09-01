@@ -1,6 +1,21 @@
-export function formatAmount(value) {
+const CURRENCY_LABELS = { MAD: "MAD", EUR: "€", USD: "$" };
+
+/**
+ * Defaults to MAD so every existing call site across the app (budgets,
+ * goals, recurring, loans, trends, category breakdown, cash flow
+ * forecast) keeps working unchanged — those features aren't tied to a
+ * specific account/currency and stay MAD-denominated. Only account
+ * balances and the transactions linked to them pass a real currency.
+ */
+export function formatAmount(value, currency = "MAD") {
   const abs = Math.abs(value);
-  return `${abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2, numberingSystem: "latn" })} MAD`;
+  const number = abs.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    numberingSystem: "latn",
+  });
+  const label = CURRENCY_LABELS[currency] || currency;
+  return `${number} ${label}`;
 }
 
 export function formatDate(iso, locale = "en-US") {
