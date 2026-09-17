@@ -120,7 +120,7 @@ function CategoryGroup({ label, items, onDelete, t }) {
             <button
               onClick={() => onDelete(c.id)}
               aria-label={t("deleteCategoryAria")}
-              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-(--color-ink-soft) hover:text-(--color-debit) text-xs transition-opacity shrink-0"
+              className="text-(--color-ink-soft) hover:text-(--color-debit) text-xs shrink-0"
             >
               ✕
             </button>

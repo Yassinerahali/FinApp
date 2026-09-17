@@ -7,3 +7,4 @@ add or delete categories (loans, debts ...)
 when you surpace a budget it should show a sad face emoji on the budget progres slide
 beautify the website (animations, interactive elements...) make it modern
 add loans and debts management 
+notifications

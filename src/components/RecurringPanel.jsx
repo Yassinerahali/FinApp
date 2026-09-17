@@ -242,7 +242,7 @@ export default function RecurringPanel({ rules, addRule, updateRule, deleteRule,
                   >
                     {r.type === "income" ? "+" : "−"}{formatAmount(r.amount)}
                   </span>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setEditingId(r.id)}
                       aria-label={t("editRecurringAria")}
