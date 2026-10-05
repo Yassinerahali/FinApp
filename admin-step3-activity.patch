@@ -1,0 +1,222 @@
+From 9d13256863b01761e8b8f54760b8eb81eebdf4bb Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 22:18:23 +0000
+Subject: [PATCH] Admin: activity counts (transactions, accounts, last
+ transaction)
+
+Adds migration-010 which replaces admin_list_users() with extra columns.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012CzbPjfj3Ck9CZRAKBR4eS
+---
+ src/components/AdminUsers.jsx             |  19 +++-
+ src/lib/i18n/translations.js              |  12 +++
+ supabase/migration-010-admin-activity.sql | 101 ++++++++++++++++++++++
+ 3 files changed, 130 insertions(+), 2 deletions(-)
+ create mode 100644 supabase/migration-010-admin-activity.sql
+
+diff --git a/src/components/AdminUsers.jsx b/src/components/AdminUsers.jsx
+index 21cfa7f..895e6c0 100644
+--- a/src/components/AdminUsers.jsx
++++ b/src/components/AdminUsers.jsx
+@@ -38,6 +38,8 @@ const SORT_VALUE = {
+   created_at: (u) => u.created_at || "",
+   last_sign_in_at: (u) => u.last_sign_in_at || "",
+   balance: (u) => Number(u.balance_mad) || 0,
++  tx_count: (u) => Number(u.tx_count) || 0,
++  account_count: (u) => Number(u.account_count) || 0,
+ };
+ 
+ function SortHeader({ label, sortKey, sort, onSort, align = "start", className = "" }) {
+@@ -170,6 +172,8 @@ export default function AdminUsers() {
+                 <SortHeader label={t("adminEmail")} sortKey="email" sort={sort} onSort={handleSort} className="px-3" />
+                 <SortHeader label={t("adminJoined")} sortKey="created_at" sort={sort} onSort={handleSort} className="px-3" />
+                 <SortHeader label={t("adminLastSignIn")} sortKey="last_sign_in_at" sort={sort} onSort={handleSort} className="px-3" />
++                <SortHeader label={t("adminTransactions")} sortKey="tx_count" sort={sort} onSort={handleSort} className="px-3" />
++                <SortHeader label={t("adminAccounts")} sortKey="account_count" sort={sort} onSort={handleSort} className="px-3" />
+                 <SortHeader label={t("adminBalance")} sortKey="balance" sort={sort} onSort={handleSort} align="end" className="px-5 sm:px-6" />
+               </tr>
+             </thead>
+@@ -188,6 +192,17 @@ export default function AdminUsers() {
+                       ? formatDate(u.last_sign_in_at.slice(0, 10), LOCALES[lang] || "en-US")
+                       : t("adminNever")}
+                   </td>
++                  <td className="px-3 py-3 whitespace-nowrap">
++                    <div className="font-mono tabular">{Number(u.tx_count) || 0}</div>
++                    <div className="text-xs text-(--color-ink-soft)">
++                      {u.last_tx_date
++                        ? t("adminLastTx", {
++                            date: formatDate(u.last_tx_date, LOCALES[lang] || "en-US"),
++                          })
++                        : t("adminNoTx")}
++                    </div>
++                  </td>
++                  <td className="px-3 py-3 font-mono tabular">{Number(u.account_count) || 0}</td>
+                   <td className="px-5 sm:px-6 py-3">
+                     <div className="flex justify-end">
+                       <BalanceCell user={u} />
+@@ -197,7 +212,7 @@ export default function AdminUsers() {
+               ))}
+               {!loading && visible.length === 0 && (
+                 <tr>
+-                  <td colSpan={5} className="px-6 py-8 text-center text-(--color-ink-soft)">
++                  <td colSpan={7} className="px-6 py-8 text-center text-(--color-ink-soft)">
+                     {t("adminNoUsers")}
+                   </td>
+                 </tr>
+@@ -206,7 +221,7 @@ export default function AdminUsers() {
+             {visible.length > 0 && (
+               <tfoot>
+                 <tr style={{ borderTop: "3px double var(--color-ink)" }}>
+-                  <td colSpan={4} className="px-5 sm:px-6 py-3 font-serif font-semibold">
++                  <td colSpan={6} className="px-5 sm:px-6 py-3 font-serif font-semibold">
+                     {t("adminTotalMad")}
+                   </td>
+                   <td
+diff --git a/src/lib/i18n/translations.js b/src/lib/i18n/translations.js
+index 4fb7ff9..537c852 100644
+--- a/src/lib/i18n/translations.js
++++ b/src/lib/i18n/translations.js
+@@ -132,6 +132,10 @@ export const TRANSLATIONS = {
+     adminJoined: "Joined",
+     adminLastSignIn: "Last sign-in",
+     adminNever: "Never",
++    adminTransactions: "Transactions",
++    adminAccounts: "Accounts",
++    adminLastTx: "Last: {date}",
++    adminNoTx: "None yet",
+     adminSearch: "Search by name or email",
+     adminRefresh: "Refresh",
+     adminNoUsers: "No users match.",
+@@ -489,6 +493,10 @@ export const TRANSLATIONS = {
+     adminJoined: "Inscription",
+     adminLastSignIn: "Dernière connexion",
+     adminNever: "Jamais",
++    adminTransactions: "Transactions",
++    adminAccounts: "Comptes",
++    adminLastTx: "Dernière : {date}",
++    adminNoTx: "Aucune",
+     adminSearch: "Rechercher par nom ou e-mail",
+     adminRefresh: "Actualiser",
+     adminNoUsers: "Aucun utilisateur trouvé.",
+@@ -837,6 +845,10 @@ export const TRANSLATIONS = {
+     adminJoined: "تاريخ التسجيل",
+     adminLastSignIn: "آخر دخول",
+     adminNever: "أبدًا",
++    adminTransactions: "المعاملات",
++    adminAccounts: "الحسابات",
++    adminLastTx: "الأخيرة: {date}",
++    adminNoTx: "لا شيء بعد",
+     adminSearch: "ابحث بالاسم أو البريد",
+     adminRefresh: "تحديث",
+     adminNoUsers: "لا يوجد مستخدمون مطابقون.",
+diff --git a/supabase/migration-010-admin-activity.sql b/supabase/migration-010-admin-activity.sql
+new file mode 100644
+index 0000000..022f63d
+--- /dev/null
++++ b/supabase/migration-010-admin-activity.sql
+@@ -0,0 +1,101 @@
++-- Run this once in your Supabase project's SQL Editor, AFTER
++-- migration-009-admin-users.sql.
++-- Replaces admin_list_users() so it also returns, for each user, how
++-- many transactions and accounts they have and the date of their latest
++-- transaction. Same admin-only check as before: anyone other than the
++-- confirmed admin@choumchoum.com gets "not authorized".
++
++-- The return columns change, so the old version must be dropped first.
++drop function if exists public.admin_list_users();
++
++create function public.admin_list_users()
++returns table (
++  id uuid,
++  email text,
++  first_name text,
++  last_name text,
++  created_at timestamptz,
++  last_sign_in_at timestamptz,
++  balance_mad numeric,
++  balance_eur numeric,
++  balance_usd numeric,
++  tx_count bigint,
++  account_count bigint,
++  last_tx_date date
++)
++language plpgsql
++security definer
++set search_path = public, auth
++stable
++as $$
++begin
++  if not exists (
++    select 1
++    from auth.users au
++    where au.id = auth.uid()
++      and lower(au.email) = 'admin@choumchoum.com'
++      and au.email_confirmed_at is not null
++  ) then
++    raise exception 'not authorized' using errcode = '42501';
++  end if;
++
++  return query
++  with opening as (
++    select a.user_id, coalesce(a.currency, 'MAD') as currency,
++           sum(coalesce(a.opening_balance, 0)) as amount
++    from public.accounts a
++    group by a.user_id, coalesce(a.currency, 'MAD')
++  ),
++  moves as (
++    select t.user_id, coalesce(a.currency, 'MAD') as currency,
++           sum(case when t.type = 'income' then t.amount else -t.amount end) as amount
++    from public.transactions t
++    left join public.accounts a on a.id = t.account_id
++    group by t.user_id, coalesce(a.currency, 'MAD')
++  ),
++  combined as (
++    select o.user_id, o.currency, o.amount from opening o
++    union all
++    select m.user_id, m.currency, m.amount from moves m
++  ),
++  totals as (
++    select c.user_id,
++      coalesce(sum(c.amount) filter (where c.currency = 'MAD'), 0) as mad,
++      coalesce(sum(c.amount) filter (where c.currency = 'EUR'), 0) as eur,
++      coalesce(sum(c.amount) filter (where c.currency = 'USD'), 0) as usd
++    from combined c
++    group by c.user_id
++  ),
++  tx_stats as (
++    select t.user_id, count(*) as n_tx, max(t.date) as last_date
++    from public.transactions t
++    group by t.user_id
++  ),
++  acct_stats as (
++    select a.user_id, count(*) as n_acct
++    from public.accounts a
++    group by a.user_id
++  )
++  select
++    u.id,
++    u.email::text,
++    coalesce(u.raw_user_meta_data->>'first_name', '')::text,
++    coalesce(u.raw_user_meta_data->>'last_name', '')::text,
++    u.created_at,
++    u.last_sign_in_at,
++    coalesce(tt.mad, 0),
++    coalesce(tt.eur, 0),
++    coalesce(tt.usd, 0),
++    coalesce(ts.n_tx, 0)::bigint,
++    coalesce(ac.n_acct, 0)::bigint,
++    ts.last_date::date
++  from auth.users u
++  left join totals tt on tt.user_id = u.id
++  left join tx_stats ts on ts.user_id = u.id
++  left join acct_stats ac on ac.user_id = u.id
++  order by u.created_at desc;
++end;
++$$;
++
++revoke all on function public.admin_list_users() from public, anon;
++grant execute on function public.admin_list_users() to authenticated;
+-- 
+2.43.0
+

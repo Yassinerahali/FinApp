@@ -1,0 +1,131 @@
+From c4b04865084b62abb7df339135a875b6fe3f05a5 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 22:13:59 +0000
+Subject: [PATCH] Admin: sortable columns
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012CzbPjfj3Ck9CZRAKBR4eS
+---
+ src/components/AdminUsers.jsx | 83 +++++++++++++++++++++++++++--------
+ 1 file changed, 64 insertions(+), 19 deletions(-)
+
+diff --git a/src/components/AdminUsers.jsx b/src/components/AdminUsers.jsx
+index 9f3188c..21cfa7f 100644
+--- a/src/components/AdminUsers.jsx
++++ b/src/components/AdminUsers.jsx
+@@ -32,6 +32,38 @@ function BalanceCell({ user }) {
+   );
+ }
+ 
++const SORT_VALUE = {
++  name: (u) => [u.first_name, u.last_name].filter(Boolean).join(" ").toLowerCase(),
++  email: (u) => (u.email || "").toLowerCase(),
++  created_at: (u) => u.created_at || "",
++  last_sign_in_at: (u) => u.last_sign_in_at || "",
++  balance: (u) => Number(u.balance_mad) || 0,
++};
++
++function SortHeader({ label, sortKey, sort, onSort, align = "start", className = "" }) {
++  const active = sort.key === sortKey;
++  const ariaSort = active ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
++  return (
++    <th
++      aria-sort={ariaSort}
++      className={`py-2.5 font-normal text-${align} ${className}`}
++    >
++      <button
++        type="button"
++        onClick={() => onSort(sortKey)}
++        className={`inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-widest whitespace-nowrap hover:text-(--color-ink) transition-colors ${
++          active ? "text-(--color-ink)" : "text-(--color-ink-soft)"
++        }`}
++      >
++        {label}
++        <span aria-hidden="true" className={active ? "" : "opacity-30"}>
++          {active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
++        </span>
++      </button>
++    </th>
++  );
++}
++
+ const LOCALES = { en: "en-US", fr: "fr-FR", ar: "ar-MA" };
+ 
+ export default function AdminUsers() {
+@@ -40,6 +72,7 @@ export default function AdminUsers() {
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState("");
+   const [query, setQuery] = useState("");
++  const [sort, setSort] = useState({ key: "created_at", dir: "desc" });
+ 
+   const load = useCallback(async () => {
+     setLoading(true);
+@@ -64,11 +97,33 @@ export default function AdminUsers() {
+ 
+   const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(" ");
+ 
++  function handleSort(key) {
++    setSort((prev) =>
++      prev.key === key
++        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
++        : // Text sorts A→Z first; dates and balances start with the biggest/newest.
++          { key, dir: key === "name" || key === "email" ? "asc" : "desc" }
++    );
++  }
++
+   const visible = useMemo(() => {
+     const q = query.trim().toLowerCase();
+-    if (!q) return users;
+-    return users.filter((u) => `${fullName(u)} ${u.email}`.toLowerCase().includes(q));
+-  }, [users, query]);
++    const filtered = q
++      ? users.filter((u) => `${fullName(u)} ${u.email}`.toLowerCase().includes(q))
++      : users;
++    const getValue = SORT_VALUE[sort.key];
++    const factor = sort.dir === "asc" ? 1 : -1;
++    return [...filtered].sort((a, b) => {
++      const av = getValue(a);
++      const bv = getValue(b);
++      // Missing values (no name, never signed in) always sink to the bottom.
++      const aEmpty = av === "";
++      const bEmpty = bv === "";
++      if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
++      if (av === bv) return 0;
++      return av > bv ? factor : -factor;
++    });
++  }, [users, query, sort]);
+ 
+   const totalMad = useMemo(
+     () => visible.reduce((sum, u) => sum + (Number(u.balance_mad) || 0), 0),
+@@ -110,22 +165,12 @@ export default function AdminUsers() {
+         <div className="overflow-x-auto">
+           <table className="w-full text-sm">
+             <thead>
+-              <tr className="border-y border-(--color-rule) bg-(--color-paper-bar) text-start">
+-                <th className="px-5 sm:px-6 py-2.5 text-start font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) font-normal">
+-                  {t("adminName")}
+-                </th>
+-                <th className="px-3 py-2.5 text-start font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) font-normal">
+-                  {t("adminEmail")}
+-                </th>
+-                <th className="px-3 py-2.5 text-start font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) font-normal whitespace-nowrap">
+-                  {t("adminJoined")}
+-                </th>
+-                <th className="px-3 py-2.5 text-start font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) font-normal whitespace-nowrap">
+-                  {t("adminLastSignIn")}
+-                </th>
+-                <th className="px-5 sm:px-6 py-2.5 text-end font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) font-normal">
+-                  {t("adminBalance")}
+-                </th>
++              <tr className="border-y border-(--color-rule) bg-(--color-paper-bar)">
++                <SortHeader label={t("adminName")} sortKey="name" sort={sort} onSort={handleSort} className="px-5 sm:px-6" />
++                <SortHeader label={t("adminEmail")} sortKey="email" sort={sort} onSort={handleSort} className="px-3" />
++                <SortHeader label={t("adminJoined")} sortKey="created_at" sort={sort} onSort={handleSort} className="px-3" />
++                <SortHeader label={t("adminLastSignIn")} sortKey="last_sign_in_at" sort={sort} onSort={handleSort} className="px-3" />
++                <SortHeader label={t("adminBalance")} sortKey="balance" sort={sort} onSort={handleSort} align="end" className="px-5 sm:px-6" />
+               </tr>
+             </thead>
+             <tbody>
+-- 
+2.43.0
+

@@ -31,6 +31,8 @@ import ImportWizard from "./components/ImportWizard";
 import DataMenu from "./components/DataMenu";
 import ProfileMenu from "./components/ProfileMenu";
 import NotificationBell from "./components/NotificationBell";
+import AdminUsers from "./components/AdminUsers";
+import { isAdmin } from "./lib/admin";
 
 function currentMonthKey() {
   const d = new Date();
@@ -49,10 +51,12 @@ const TAB_KEYS = {
   loans: "tabLoans",
   categories: "tabCategories",
   trends: "tabTrends",
+  admin: "tabAdmin",
 };
 
 export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }) {
   const { t, catLabel } = useLanguage();
+  const tabIds = isAdmin(user) ? [...TAB_IDS, "admin"] : TAB_IDS;
   const [tab, setTab] = useState("ledger");
   const [editingId, setEditingId] = useState(null);
   const [restoreError, setRestoreError] = useState("");
@@ -231,7 +235,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
           </div>
         )}
         <nav className="max-w-5xl mx-auto hidden sm:flex gap-1 mt-5 -mb-6 overflow-x-auto">
-          {TAB_IDS.map((id) => (
+          {tabIds.map((id) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -276,7 +280,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
             </button>
           </div>
           <div className="flex-1 overflow-y-auto py-2">
-            {TAB_IDS.map((id) => (
+            {tabIds.map((id) => (
               <button
                 key={id}
                 onClick={() => {
@@ -414,6 +418,8 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
             />
           </div>
         )}
+
+        {tab === "admin" && isAdmin(user) && <AdminUsers />}
 
         {tab === "trends" && (
           <div className="max-w-3xl space-y-6">

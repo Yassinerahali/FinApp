@@ -1,0 +1,426 @@
+From f36498bd8764a05f777b9f9c6356045e345339fe Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 5 Oct 2026 09:34:29 +0000
+Subject: [PATCH] Add admin-only Users tab (email, name, balance)
+
+Server-side guarded by a security-definer admin_list_users() function
+that only answers for admin@choumchoum.com.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012CzbPjfj3Ck9CZRAKBR4eS
+---
+ src/LedgerApp.jsx                      |  10 +-
+ src/components/AdminUsers.jsx          | 163 +++++++++++++++++++++++++
+ src/lib/admin.js                       |   8 ++
+ src/lib/i18n/translations.js           |  42 +++++++
+ supabase/migration-009-admin-users.sql |  93 ++++++++++++++
+ 5 files changed, 314 insertions(+), 2 deletions(-)
+ create mode 100644 src/components/AdminUsers.jsx
+ create mode 100644 src/lib/admin.js
+ create mode 100644 supabase/migration-009-admin-users.sql
+
+diff --git a/src/LedgerApp.jsx b/src/LedgerApp.jsx
+index 99f1a70..d25568a 100644
+--- a/src/LedgerApp.jsx
++++ b/src/LedgerApp.jsx
+@@ -31,6 +31,8 @@ import ImportWizard from "./components/ImportWizard";
+ import DataMenu from "./components/DataMenu";
+ import ProfileMenu from "./components/ProfileMenu";
+ import NotificationBell from "./components/NotificationBell";
++import AdminUsers from "./components/AdminUsers";
++import { isAdmin } from "./lib/admin";
+ 
+ function currentMonthKey() {
+   const d = new Date();
+@@ -49,10 +51,12 @@ const TAB_KEYS = {
+   loans: "tabLoans",
+   categories: "tabCategories",
+   trends: "tabTrends",
++  admin: "tabAdmin",
+ };
+ 
+ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }) {
+   const { t, catLabel } = useLanguage();
++  const tabIds = isAdmin(user) ? [...TAB_IDS, "admin"] : TAB_IDS;
+   const [tab, setTab] = useState("ledger");
+   const [editingId, setEditingId] = useState(null);
+   const [restoreError, setRestoreError] = useState("");
+@@ -231,7 +235,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
+           </div>
+         )}
+         <nav className="max-w-5xl mx-auto hidden sm:flex gap-1 mt-5 -mb-6 overflow-x-auto">
+-          {TAB_IDS.map((id) => (
++          {tabIds.map((id) => (
+             <button
+               key={id}
+               onClick={() => setTab(id)}
+@@ -276,7 +280,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
+             </button>
+           </div>
+           <div className="flex-1 overflow-y-auto py-2">
+-            {TAB_IDS.map((id) => (
++            {tabIds.map((id) => (
+               <button
+                 key={id}
+                 onClick={() => {
+@@ -415,6 +419,8 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
+           </div>
+         )}
+ 
++        {tab === "admin" && isAdmin(user) && <AdminUsers />}
++
+         {tab === "trends" && (
+           <div className="max-w-3xl space-y-6">
+             <SpendingInsight transactions={transactions} months={6} />
+diff --git a/src/components/AdminUsers.jsx b/src/components/AdminUsers.jsx
+new file mode 100644
+index 0000000..51ca0cb
+--- /dev/null
++++ b/src/components/AdminUsers.jsx
+@@ -0,0 +1,163 @@
++import { useCallback, useEffect, useMemo, useState } from "react";
++import { supabase } from "../lib/supabaseClient";
++import { formatAmount } from "../lib/format";
++import { useLanguage } from "../lib/i18n/LanguageContext";
++
++const CURRENCIES = [
++  ["MAD", "balance_mad"],
++  ["EUR", "balance_eur"],
++  ["USD", "balance_usd"],
++];
++
++function BalanceCell({ user }) {
++  // Show every currency the user actually holds; always show MAD.
++  const lines = CURRENCIES.filter(([c, key]) => c === "MAD" || Number(user[key]) !== 0);
++  return (
++    <div className="space-y-0.5">
++      {lines.map(([currency, key]) => {
++        const value = Number(user[key]) || 0;
++        return (
++          <div
++            key={currency}
++            className={`font-mono tabular text-sm ${
++              value < 0 ? "text-(--color-debit)" : "text-(--color-ink)"
++            }`}
++          >
++            {value < 0 ? "−" : ""}
++            {formatAmount(value, currency)}
++          </div>
++        );
++      })}
++    </div>
++  );
++}
++
++export default function AdminUsers() {
++  const { t } = useLanguage();
++  const [users, setUsers] = useState([]);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState("");
++  const [query, setQuery] = useState("");
++
++  const load = useCallback(async () => {
++    setLoading(true);
++    setError("");
++    const { data, error: rpcError } = await supabase.rpc("admin_list_users");
++    if (rpcError) {
++      setError(rpcError.code === "42501" ? t("adminForbidden") : t("adminLoadError"));
++      setUsers([]);
++    } else {
++      setUsers(data || []);
++    }
++    setLoading(false);
++  }, [t]);
++
++  useEffect(() => {
++    load();
++  }, [load]);
++
++  const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(" ");
++
++  const visible = useMemo(() => {
++    const q = query.trim().toLowerCase();
++    if (!q) return users;
++    return users.filter((u) => `${fullName(u)} ${u.email}`.toLowerCase().includes(q));
++  }, [users, query]);
++
++  const totalMad = useMemo(
++    () => visible.reduce((sum, u) => sum + (Number(u.balance_mad) || 0), 0),
++    [visible]
++  );
++
++  return (
++    <div className="border border-(--color-rule) bg-(--color-paper) animate-fade-in-up">
++      <div className="p-5 sm:p-6 flex flex-wrap items-end justify-between gap-3">
++        <div>
++          <h2 className="font-serif text-lg font-semibold tracking-tight">{t("adminTitle")}</h2>
++          <p className="text-xs text-(--color-ink-soft) mt-1">
++            {t("adminSubtitle")}
++            {!loading && !error && ` · ${t("adminUserCount", { count: visible.length })}`}
++          </p>
++        </div>
++        <div className="flex items-center gap-2">
++          <input
++            type="search"
++            value={query}
++            onChange={(e) => setQuery(e.target.value)}
++            placeholder={t("adminSearch")}
++            aria-label={t("adminSearch")}
++            className="border border-(--color-rule) bg-transparent px-3 py-2 text-sm w-56 max-w-full"
++          />
++          <button
++            onClick={load}
++            disabled={loading}
++            className="px-3 py-2 border border-(--color-rule) font-mono text-xs uppercase tracking-widest hover:border-(--color-brass) disabled:opacity-50 transition-colors"
++          >
++            {t("adminRefresh")}
++          </button>
++        </div>
++      </div>
++
++      {error ? (
++        <p className="px-5 sm:px-6 pb-6 text-sm text-(--color-debit)">{error}</p>
++      ) : (
++        <div className="overflow-x-auto">
++          <table className="w-full text-sm">
++            <thead>
++              <tr className="border-y border-(--color-rule) bg-(--color-paper-bar) text-start">
++                <th className="px-5 sm:px-6 py-2.5 text-start font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) font-normal">
++                  {t("adminName")}
++                </th>
++                <th className="px-3 py-2.5 text-start font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) font-normal">
++                  {t("adminEmail")}
++                </th>
++                <th className="px-5 sm:px-6 py-2.5 text-end font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft) font-normal">
++                  {t("adminBalance")}
++                </th>
++              </tr>
++            </thead>
++            <tbody>
++              {visible.map((u) => (
++                <tr key={u.id} className="border-b border-(--color-rule) last:border-b-0">
++                  <td className="px-5 sm:px-6 py-3 whitespace-nowrap">
++                    {fullName(u) || <span className="text-(--color-ink-soft)">{t("adminNoName")}</span>}
++                  </td>
++                  <td className="px-3 py-3 text-(--color-ink-soft) break-all">{u.email}</td>
++                  <td className="px-5 sm:px-6 py-3">
++                    <div className="flex justify-end">
++                      <BalanceCell user={u} />
++                    </div>
++                  </td>
++                </tr>
++              ))}
++              {!loading && visible.length === 0 && (
++                <tr>
++                  <td colSpan={3} className="px-6 py-8 text-center text-(--color-ink-soft)">
++                    {t("adminNoUsers")}
++                  </td>
++                </tr>
++              )}
++            </tbody>
++            {visible.length > 0 && (
++              <tfoot>
++                <tr style={{ borderTop: "3px double var(--color-ink)" }}>
++                  <td colSpan={2} className="px-5 sm:px-6 py-3 font-serif font-semibold">
++                    {t("adminTotalMad")}
++                  </td>
++                  <td
++                    className={`px-5 sm:px-6 py-3 text-end font-mono tabular font-semibold ${
++                      totalMad < 0 ? "text-(--color-debit)" : "text-(--color-ink)"
++                    }`}
++                  >
++                    {totalMad < 0 ? "−" : ""}
++                    {formatAmount(totalMad)}
++                  </td>
++                </tr>
++              </tfoot>
++            )}
++          </table>
++        </div>
++      )}
++    </div>
++  );
++}
+diff --git a/src/lib/admin.js b/src/lib/admin.js
+new file mode 100644
+index 0000000..aa87beb
+--- /dev/null
++++ b/src/lib/admin.js
+@@ -0,0 +1,8 @@
++// Convenience only: decides whether to SHOW the Admin tab. The real
++// protection is in the database — admin_list_users() (see
++// supabase/migration-009-admin-users.sql) rejects anyone but the admin.
++export const ADMIN_EMAIL = "admin@choumchoum.com";
++
++export function isAdmin(user) {
++  return user?.email?.toLowerCase() === ADMIN_EMAIL;
++}
+diff --git a/src/lib/i18n/translations.js b/src/lib/i18n/translations.js
+index a79655e..39b98b6 100644
+--- a/src/lib/i18n/translations.js
++++ b/src/lib/i18n/translations.js
+@@ -123,6 +123,20 @@ export const TRANSLATIONS = {
+     tabBudgets: "Budgets",
+     tabRecurring: "Recurring",
+     tabTrends: "Trends",
++    tabAdmin: "Admin",
++    adminTitle: "Users",
++    adminSubtitle: "Everyone registered in CHOUMCHOUM",
++    adminName: "Name",
++    adminEmail: "Email",
++    adminBalance: "Balance",
++    adminSearch: "Search by name or email",
++    adminRefresh: "Refresh",
++    adminNoUsers: "No users match.",
++    adminNoName: "—",
++    adminUserCount: "{count} users",
++    adminTotalMad: "Total (MAD)",
++    adminLoadError: "Couldn't load users. Run supabase/migration-009-admin-users.sql in your Supabase SQL Editor, then refresh.",
++    adminForbidden: "This area is only available to the administrator.",
+     tabAccounts: "Accounts",
+     tabGoals: "Goals",
+     tabLoans: "Loans",
+@@ -463,6 +477,20 @@ export const TRANSLATIONS = {
+     tabBudgets: "Budgets",
+     tabRecurring: "Récurrent",
+     tabTrends: "Tendances",
++    tabAdmin: "Admin",
++    adminTitle: "Utilisateurs",
++    adminSubtitle: "Toutes les personnes inscrites sur CHOUMCHOUM",
++    adminName: "Nom",
++    adminEmail: "E-mail",
++    adminBalance: "Solde",
++    adminSearch: "Rechercher par nom ou e-mail",
++    adminRefresh: "Actualiser",
++    adminNoUsers: "Aucun utilisateur trouvé.",
++    adminNoName: "—",
++    adminUserCount: "{count} utilisateurs",
++    adminTotalMad: "Total (MAD)",
++    adminLoadError: "Impossible de charger les utilisateurs. Exécutez supabase/migration-009-admin-users.sql dans l'éditeur SQL de Supabase, puis actualisez.",
++    adminForbidden: "Cet espace est réservé à l'administrateur.",
+     tabAccounts: "Comptes",
+     tabGoals: "Objectifs",
+     tabLoans: "Prêts",
+@@ -794,6 +822,20 @@ export const TRANSLATIONS = {
+     tabBudgets: "الميزانيات",
+     tabRecurring: "المتكررة",
+     tabTrends: "الاتجاهات",
++    tabAdmin: "المسؤول",
++    adminTitle: "المستخدمون",
++    adminSubtitle: "جميع المسجلين في CHOUMCHOUM",
++    adminName: "الاسم",
++    adminEmail: "البريد الإلكتروني",
++    adminBalance: "الرصيد",
++    adminSearch: "ابحث بالاسم أو البريد",
++    adminRefresh: "تحديث",
++    adminNoUsers: "لا يوجد مستخدمون مطابقون.",
++    adminNoName: "—",
++    adminUserCount: "{count} مستخدمين",
++    adminTotalMad: "المجموع (MAD)",
++    adminLoadError: "تعذر تحميل المستخدمين. شغّل supabase/migration-009-admin-users.sql في محرر SQL الخاص بـ Supabase ثم حدّث الصفحة.",
++    adminForbidden: "هذه المنطقة متاحة للمسؤول فقط.",
+     tabAccounts: "الحسابات",
+     tabGoals: "الأهداف",
+     tabLoans: "القروض",
+diff --git a/supabase/migration-009-admin-users.sql b/supabase/migration-009-admin-users.sql
+new file mode 100644
+index 0000000..6753d6a
+--- /dev/null
++++ b/supabase/migration-009-admin-users.sql
+@@ -0,0 +1,93 @@
++-- Run this once in your Supabase project's SQL Editor.
++-- Adds an admin-only function that lists every user with their email,
++-- name and balance, for the Admin tab in the app.
++--
++-- Security: the check lives HERE, in the database, not just in the UI.
++-- The function runs with elevated rights (security definer) so it can
++-- read auth.users and everyone's accounts/transactions, but it refuses
++-- to return anything unless the caller is signed in as the admin
++-- account below AND that account's email is confirmed. Normal users
++-- calling it get an error, and row-level security on the real tables
++-- is left untouched.
++--
++-- IMPORTANT: make sure admin@choumchoum.com is already registered (and
++-- confirmed) in your project before deploying, so nobody else can
++-- sign up with that address first.
++
++create or replace function public.admin_list_users()
++returns table (
++  id uuid,
++  email text,
++  first_name text,
++  last_name text,
++  created_at timestamptz,
++  last_sign_in_at timestamptz,
++  balance_mad numeric,
++  balance_eur numeric,
++  balance_usd numeric
++)
++language plpgsql
++security definer
++set search_path = public, auth
++stable
++as $$
++begin
++  if not exists (
++    select 1
++    from auth.users au
++    where au.id = auth.uid()
++      and lower(au.email) = 'admin@choumchoum.com'
++      and au.email_confirmed_at is not null
++  ) then
++    raise exception 'not authorized' using errcode = '42501';
++  end if;
++
++  return query
++  with opening as (
++    select a.user_id, coalesce(a.currency, 'MAD') as currency,
++           sum(coalesce(a.opening_balance, 0)) as amount
++    from public.accounts a
++    group by a.user_id, coalesce(a.currency, 'MAD')
++  ),
++  moves as (
++    -- Transactions take their account's currency; ones with no account
++    -- fold into MAD, matching the app's net-worth calculation.
++    select t.user_id, coalesce(a.currency, 'MAD') as currency,
++           sum(case when t.type = 'income' then t.amount else -t.amount end) as amount
++    from public.transactions t
++    left join public.accounts a on a.id = t.account_id
++    group by t.user_id, coalesce(a.currency, 'MAD')
++  ),
++  combined as (
++    select user_id, currency, amount from opening
++    union all
++    select user_id, currency, amount from moves
++  ),
++  totals as (
++    select c.user_id,
++      coalesce(sum(c.amount) filter (where c.currency = 'MAD'), 0) as mad,
++      coalesce(sum(c.amount) filter (where c.currency = 'EUR'), 0) as eur,
++      coalesce(sum(c.amount) filter (where c.currency = 'USD'), 0) as usd
++    from combined c
++    group by c.user_id
++  )
++  select
++    u.id,
++    u.email::text,
++    coalesce(u.raw_user_meta_data->>'first_name', '')::text,
++    coalesce(u.raw_user_meta_data->>'last_name', '')::text,
++    u.created_at,
++    u.last_sign_in_at,
++    coalesce(t.mad, 0),
++    coalesce(t.eur, 0),
++    coalesce(t.usd, 0)
++  from auth.users u
++  left join totals t on t.user_id = u.id
++  order by u.created_at desc;
++end;
++$$;
++
++-- Nobody can call it anonymously; signed-in users can call it but the
++-- check above rejects everyone except the admin.
++revoke all on function public.admin_list_users() from public, anon;
++grant execute on function public.admin_list_users() to authenticated;
+-- 
+2.43.0
+
