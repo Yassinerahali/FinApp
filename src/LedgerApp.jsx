@@ -14,6 +14,7 @@ import EntryForm from "./components/EntryForm";
 import LedgerTable from "./components/LedgerTable";
 import TransactionFilters from "./components/TransactionFilters";
 import BalanceSummary from "./components/BalanceSummary";
+import KpiRow from "./components/KpiRow";
 import CategoryBreakdown from "./components/CategoryBreakdown";
 import BudgetPanel from "./components/BudgetPanel";
 import RecurringPanel from "./components/RecurringPanel";
@@ -296,6 +297,15 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
       </div>
 
       <main key={tab} className="max-w-5xl mx-auto px-5 sm:px-8 py-8 animate-fade-in-up">
+        {tab === "ledger" && (
+          <KpiRow
+            transactions={transactions}
+            accounts={accounts}
+            income={income}
+            expense={expense}
+          />
+        )}
+
         {tab === "ledger" && (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6 items-start">
             <div className="space-y-6 lg:sticky lg:top-8">

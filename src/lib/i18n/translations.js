@@ -293,6 +293,19 @@ export const TRANSLATIONS = {
     deleteEntryAria: "Delete entry",
 
     // Balance summary
+    // KPI row
+    kpiTotalBalance: "Total balance",
+    kpiAllAccounts: "All accounts",
+    kpiIncomeVsExpenses: "Income vs. expenses",
+    kpiNetThisMonth: "Net this month",
+    kpiSavingsRate: "Savings rate",
+    kpiSavingsRateNoIncome: "No income yet this month",
+    kpiSavingsRateOverspent: "Spending more than you earn",
+    kpiSavingsRateOf: "of income saved",
+    kpiMonthChange: "Spending vs. last month",
+    kpiMonthChangeSub: "Same days, {prev} last month",
+    kpiMonthChangeNoPrev: "No spending last month to compare",
+
     thisMonth: "This month",
     income: "Income",
     expenses: "Expenses",
@@ -617,6 +630,19 @@ export const TRANSLATIONS = {
     editEntryAria: "Modifier l'écriture",
     deleteEntryAria: "Supprimer l'écriture",
 
+    // KPI row
+    kpiTotalBalance: "Solde total",
+    kpiAllAccounts: "Tous les comptes",
+    kpiIncomeVsExpenses: "Revenus vs. dépenses",
+    kpiNetThisMonth: "Net ce mois-ci",
+    kpiSavingsRate: "Taux d'épargne",
+    kpiSavingsRateNoIncome: "Aucun revenu ce mois-ci",
+    kpiSavingsRateOverspent: "Vous dépensez plus que vous ne gagnez",
+    kpiSavingsRateOf: "des revenus épargnés",
+    kpiMonthChange: "Dépenses vs. mois dernier",
+    kpiMonthChangeSub: "Mêmes jours, {prev} le mois dernier",
+    kpiMonthChangeNoPrev: "Aucune dépense le mois dernier à comparer",
+
     thisMonth: "Ce mois-ci",
     income: "Revenus",
     expenses: "Dépenses",
@@ -934,6 +960,19 @@ export const TRANSLATIONS = {
     edit: "تعديل",
     editEntryAria: "تعديل القيد",
     deleteEntryAria: "حذف القيد",
+
+    // KPI row
+    kpiTotalBalance: "الرصيد الإجمالي",
+    kpiAllAccounts: "كل الحسابات",
+    kpiIncomeVsExpenses: "الدخل مقابل المصاريف",
+    kpiNetThisMonth: "الصافي هذا الشهر",
+    kpiSavingsRate: "معدل الادخار",
+    kpiSavingsRateNoIncome: "لا دخل بعد هذا الشهر",
+    kpiSavingsRateOverspent: "تنفق أكثر مما تكسب",
+    kpiSavingsRateOf: "من الدخل تم ادخاره",
+    kpiMonthChange: "الإنفاق مقارنة بالشهر الماضي",
+    kpiMonthChangeSub: "نفس الأيام، {prev} الشهر الماضي",
+    kpiMonthChangeNoPrev: "لا إنفاق في الشهر الماضي للمقارنة",
 
     thisMonth: "هذا الشهر",
     income: "الدخل",
