@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { formatAmount, formatDate } from "../lib/format";
+import { exportUsersCSV } from "../lib/export";
+import AdminOverview from "./AdminOverview";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 
 const CURRENCIES = [
@@ -129,6 +131,8 @@ export default function AdminUsers() {
   );
 
   return (
+    <div className="space-y-6">
+    {!loading && !error && users.length > 0 && <AdminOverview users={users} />}
     <div className="border border-(--color-rule) bg-(--color-paper) animate-fade-in-up">
       <div className="p-5 sm:p-6 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -147,6 +151,13 @@ export default function AdminUsers() {
             aria-label={t("adminSearch")}
             className="border border-(--color-rule) bg-transparent px-3 py-2 text-sm w-56 max-w-full"
           />
+          <button
+            onClick={() => exportUsersCSV(visible)}
+            disabled={loading || visible.length === 0}
+            className="px-3 py-2 border border-(--color-rule) font-mono text-xs uppercase tracking-widest hover:border-(--color-brass) disabled:opacity-50 transition-colors"
+          >
+            {t("adminExportCsv")}
+          </button>
           <button
             onClick={load}
             disabled={loading}
@@ -234,6 +245,7 @@ export default function AdminUsers() {
           </table>
         </div>
       )}
+    </div>
     </div>
   );
 }

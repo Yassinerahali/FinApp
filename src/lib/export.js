@@ -34,6 +34,54 @@ export function exportTransactionsCSV(transactions, accountsById = {}) {
   downloadBlob(csv, `ledger-transactions-${today}.csv`, "text/csv;charset=utf-8;");
 }
 
+// For files an admin will open in Excel/Sheets: names and emails are typed
+// by users, so a value like "=HYPERLINK(...)" must not be run as a
+// formula. Text cells starting with = + - @ (or a tab/CR) get a leading
+// apostrophe; real numbers are passed through untouched.
+function csvSafeText(value) {
+  const str = String(value ?? "");
+  return /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+}
+
+export function usersToCSV(users) {
+  const header = [
+    "first_name",
+    "last_name",
+    "email",
+    "joined",
+    "last_sign_in",
+    "balance_mad",
+    "balance_eur",
+    "balance_usd",
+    "transactions",
+    "accounts",
+    "last_transaction",
+  ];
+  const day = (iso) => (iso ? String(iso).slice(0, 10) : "");
+  const rows = users.map((u) => [
+    csvSafeText(u.first_name),
+    csvSafeText(u.last_name),
+    csvSafeText(u.email),
+    day(u.created_at),
+    day(u.last_sign_in_at),
+    Number(u.balance_mad) || 0,
+    Number(u.balance_eur) || 0,
+    Number(u.balance_usd) || 0,
+    Number(u.tx_count) || 0,
+    Number(u.account_count) || 0,
+    day(u.last_tx_date),
+  ]);
+  return [header, ...rows]
+    .map((row) => row.map((cell) => csvEscape(cell).replace(/\r/g, " ")).join(","))
+    .join("\n");
+}
+
+export function exportUsersCSV(users) {
+  const today = new Date().toISOString().slice(0, 10);
+  // Leading BOM so Excel reads accents and Arabic names as UTF-8.
+  downloadBlob("\uFEFF" + usersToCSV(users), `choumchoum-users-${today}.csv`, "text/csv;charset=utf-8;");
+}
+
 export function exportFullBackup({ transactions, budgets, recurringRules }) {
   const payload = {
     exportedAt: new Date().toISOString(),
