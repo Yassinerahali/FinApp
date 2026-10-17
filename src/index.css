@@ -109,6 +109,16 @@ body {
   transform: translateX(0);
 }
 
+/* iPhone Safari zooms the whole page when a field smaller than 16px gets
+   focus. On phones, bump only the fields styled text-sm / text-xs up to
+   16px (larger ones like the amount field are left alone). */
+@media (max-width: 639px) {
+  :is(input, select, textarea)[class*="text-sm"],
+  :is(input, select, textarea)[class*="text-xs"] {
+    font-size: 16px !important;
+  }
+}
+
 ::selection {
   background-color: var(--color-brass);
   color: var(--color-paper);
