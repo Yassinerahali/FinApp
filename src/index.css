@@ -19,10 +19,21 @@
 
 html, body {
   background-color: var(--color-paper);
-  /* Safety net: nothing should ever be able to widen the page itself and
-     shift it sideways (e.g. an unconstrained table) — anything that
-     needs horizontal scrolling should scroll internally instead. */
+}
+
+/* Safety net: nothing should ever be able to widen the page itself and
+   shift it sideways (e.g. an unconstrained table) — anything that
+   needs horizontal scrolling should scroll internally instead.
+   IMPORTANT: "hidden" must only be on html (it propagates to the viewport).
+   If body also has overflow hidden, body becomes its own scroll container
+   and the sticky header sticks to it instead of the screen, so it scrolls
+   away. body uses "clip", which hides overflow without creating a scroll
+   container. */
+html {
   overflow-x: hidden;
+}
+body {
+  overflow-x: clip;
 }
 
 /* Dark mode: same semantic variable names, inverted values. Since every

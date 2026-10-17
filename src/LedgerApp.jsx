@@ -205,7 +205,18 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
               <span aria-hidden="true" className="text-base leading-none">☰</span>
             </button>
             <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight truncate">
-              {t("appName")}
+              {/* Mobile: show the app logo instead of the wordmark. The text
+                  stays in the DOM (sr-only) so the page heading is still
+                  announced by screen readers; sm+ shows the text as before. */}
+              <img
+                src="/icons/icon-192.png"
+                alt=""
+                aria-hidden="true"
+                width="36"
+                height="36"
+                className="sm:hidden block w-9 h-9 rounded-lg"
+              />
+              <span className="sr-only sm:not-sr-only">{t("appName")}</span>
             </h1>
           </div>
           <div className="flex items-center gap-2.5 shrink-0">
@@ -328,7 +339,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
                 defaultAccountId={accounts[0]?.id}
                 categories={allCategories}
               />
-              <BalanceSummary income={income} expense={expense} />
+              <BalanceSummary transactions={monthTransactions} accounts={accounts} />
               <CategoryBreakdown transactions={monthTransactions} />
             </div>
 
