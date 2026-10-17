@@ -19,6 +19,27 @@ export async function suggestCategories(notes, categories) {
   return data.result;
 }
 
+/**
+ * Sends one screenshot (a JPEG/PNG/WebP data URL) of a bank app's
+ * transaction list to the ai-assist edge function for reading.
+ * Returns { rows, dropped } — rows are { date (ISO or null), note, amount
+ * (positive), type ("income"|"expense"), category (id or null) }. Nothing
+ * here touches the ledger; callers must show the rows for review first.
+ */
+export async function extractTransactionsFromImage(image, categories, today) {
+  const { data, error } = await supabase.functions.invoke("ai-assist", {
+    body: {
+      action: "extract_transactions",
+      image,
+      categories: categories.map((c) => ({ id: c.id, type: c.type })),
+      today,
+    },
+  });
+  if (error) throw new Error(await extractFunctionError(error));
+  if (data?.error) throw new Error(data.error);
+  return data.result;
+}
+
 /** Asks the ai-assist edge function for a short written spending insight. */
 export async function getSpendingInsight(summary, lang) {
   const { data, error } = await supabase.functions.invoke("ai-assist", {

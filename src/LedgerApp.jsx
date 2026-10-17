@@ -28,6 +28,7 @@ import LoansPanel from "./components/LoansPanel";
 import SpendingInsight from "./components/SpendingInsight";
 import AssistantChat from "./components/AssistantChat";
 import ImportWizard from "./components/ImportWizard";
+import ScreenshotImportWizard from "./components/ScreenshotImportWizard";
 import DataMenu from "./components/DataMenu";
 import ProfileMenu from "./components/ProfileMenu";
 import NotificationBell from "./components/NotificationBell";
@@ -62,6 +63,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
   const [restoreError, setRestoreError] = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showImport, setShowImport] = useState(false);
+  const [showScan, setShowScan] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const fileInputRef = useRef(null);
   const {
@@ -209,6 +211,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
           <div className="flex items-center gap-2.5 shrink-0">
             <DataMenu
               onImport={() => setShowImport(true)}
+              onScan={() => setShowScan(true)}
               onExportCsv={() => exportTransactionsCSV(transactions, accountsById)}
               onBackupJson={() => exportFullBackup({ transactions, budgets, recurringRules: rules })}
               onRestoreClick={handleRestoreClick}
@@ -442,6 +445,16 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
           accounts={accounts}
           bulkAddTransactions={bulkAddTransactions}
           onClose={() => setShowImport(false)}
+        />
+      )}
+
+      {showScan && (
+        <ScreenshotImportWizard
+          categories={allCategories}
+          accounts={accounts}
+          transactions={transactions}
+          bulkAddTransactions={bulkAddTransactions}
+          onClose={() => setShowScan(false)}
         />
       )}
 

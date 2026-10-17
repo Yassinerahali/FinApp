@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 
-export default function DataMenu({ onImport, onExportCsv, onBackupJson, onRestoreClick }) {
+export default function DataMenu({ onImport, onScan, onExportCsv, onBackupJson, onRestoreClick }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
@@ -38,6 +38,12 @@ export default function DataMenu({ onImport, onExportCsv, onBackupJson, onRestor
             className="w-full text-start px-4 py-2.5 text-sm hover:bg-(--color-paper-bar)/50 transition-colors border-b border-(--color-rule)"
           >
             {t("importButton")}
+          </button>
+          <button
+            onClick={() => handleAction(onScan)}
+            className="w-full text-start px-4 py-2.5 text-sm hover:bg-(--color-paper-bar)/50 transition-colors border-b border-(--color-rule)"
+          >
+            ✨ {t("scanButton")}
           </button>
           <button
             onClick={() => handleAction(onExportCsv)}
