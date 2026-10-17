@@ -300,7 +300,10 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
         </nav>
       </div>
 
-      <main key={tab} className="max-w-5xl mx-auto px-5 sm:px-8 py-8 animate-fade-in-up">
+      <main
+        key={tab}
+        className={`${tab === "admin" ? "max-w-7xl" : "max-w-5xl"} mx-auto px-5 sm:px-8 py-8 animate-fade-in-up`}
+      >
         {tab === "ledger" && (
           <KpiRow
             transactions={transactions}

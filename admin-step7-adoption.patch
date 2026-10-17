@@ -1,0 +1,273 @@
+From eb51f1a2c9c8879b46cd38cc75c8e00805dab1b6 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 16 Oct 2026 23:41:24 +0000
+Subject: [PATCH] Admin: feature adoption card
+
+Adds migration-011 (admin_feature_adoption) and a card showing how many
+users use budgets, recurring entries, goals, loans, custom categories,
+multiple accounts and push notifications.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012CzbPjfj3Ck9CZRAKBR4eS
+---
+ src/components/AdminFeatureAdoption.jsx   | 71 +++++++++++++++++++++++
+ src/components/AdminUsers.jsx             | 20 ++++++-
+ src/lib/i18n/translations.js              | 36 ++++++++++++
+ supabase/migration-011-admin-adoption.sql | 49 ++++++++++++++++
+ 4 files changed, 175 insertions(+), 1 deletion(-)
+ create mode 100644 src/components/AdminFeatureAdoption.jsx
+ create mode 100644 supabase/migration-011-admin-adoption.sql
+
+diff --git a/src/components/AdminFeatureAdoption.jsx b/src/components/AdminFeatureAdoption.jsx
+new file mode 100644
+index 0000000..e1eae55
+--- /dev/null
++++ b/src/components/AdminFeatureAdoption.jsx
+@@ -0,0 +1,71 @@
++import { useMemo } from "react";
++import { useLanguage } from "../lib/i18n/LanguageContext";
++
++// adoption: the row from admin_feature_adoption(), or null if it failed.
++// "Multiple accounts" is derived from the user list, so it always works.
++export default function AdminFeatureAdoption({ users, adoption, error }) {
++  const { t } = useLanguage();
++  const total = users.length;
++
++  const rows = useMemo(() => {
++    if (!adoption) return [];
++    const list = [
++      { key: "budgets", label: t("adminFeatBudgets"), count: Number(adoption.with_budgets) || 0 },
++      { key: "recurring", label: t("adminFeatRecurring"), count: Number(adoption.with_recurring) || 0 },
++      { key: "goals", label: t("adminFeatGoals"), count: Number(adoption.with_goals) || 0 },
++      { key: "loans", label: t("adminFeatLoans"), count: Number(adoption.with_loans) || 0 },
++      {
++        key: "categories",
++        label: t("adminFeatCategories"),
++        count: Number(adoption.with_custom_categories) || 0,
++      },
++      {
++        key: "accounts",
++        label: t("adminFeatAccounts"),
++        count: users.filter((u) => (Number(u.account_count) || 0) >= 2).length,
++      },
++      { key: "push", label: t("adminFeatPush"), count: Number(adoption.with_push) || 0 },
++    ];
++    return list.sort((a, b) => b.count - a.count);
++  }, [adoption, users, t]);
++
++  return (
++    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6 animate-fade-in-up">
++      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-5">
++        <h2 className="font-serif text-lg font-semibold tracking-tight">{t("adminFeatTitle")}</h2>
++        <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft)">
++          {t("adminFeatSub")}
++        </span>
++      </div>
++
++      {error ? (
++        <p className="text-sm text-(--color-debit)">{t("adminFeatError")} ({error})</p>
++      ) : (
++        <>
++          <ul className="space-y-3">
++            {rows.map((r) => {
++              const pct = total > 0 ? Math.round((r.count / total) * 100) : 0;
++              return (
++                <li key={r.key} title={`${r.label}: ${r.count} / ${total}`}>
++                  <div className="flex items-baseline justify-between gap-3 text-sm">
++                    <span>{r.label}</span>
++                    <span className="font-mono tabular text-xs text-(--color-ink-soft) whitespace-nowrap">
++                      {t("adminFeatOf", { count: r.count, total, pct })}
++                    </span>
++                  </div>
++                  <div className="mt-1.5 h-1.5 w-full bg-(--color-rule) overflow-hidden">
++                    <div
++                      className="h-full bg-(--color-brass) transition-all duration-500 ease-out"
++                      style={{ width: `${pct}%` }}
++                    />
++                  </div>
++                </li>
++              );
++            })}
++          </ul>
++          <p className="mt-4 text-xs text-(--color-ink-soft)">{t("adminFeatAiNote")}</p>
++        </>
++      )}
++    </div>
++  );
++}
+diff --git a/src/components/AdminUsers.jsx b/src/components/AdminUsers.jsx
+index 836244e..fd1d08b 100644
+--- a/src/components/AdminUsers.jsx
++++ b/src/components/AdminUsers.jsx
+@@ -4,6 +4,7 @@ import { formatAmount, formatDate } from "../lib/format";
+ import { exportUsersCSV } from "../lib/export";
+ import AdminOverview from "./AdminOverview";
+ import AdminSignupsChart from "./AdminSignupsChart";
++import AdminFeatureAdoption from "./AdminFeatureAdoption";
+ import { useLanguage } from "../lib/i18n/LanguageContext";
+ 
+ const CURRENCIES = [
+@@ -77,12 +78,20 @@ export default function AdminUsers() {
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState("");
+   const [query, setQuery] = useState("");
++  const [adoption, setAdoption] = useState(null);
++  const [adoptionError, setAdoptionError] = useState("");
+   const [sort, setSort] = useState({ key: "created_at", dir: "desc" });
+ 
+   const load = useCallback(async () => {
+     setLoading(true);
+     setError("");
+-    const { data, error: rpcError } = await supabase.rpc("admin_list_users");
++    // The feature-adoption call is independent: if its migration hasn't been
++    // run yet, only that card shows an error and the rest still works.
++    const [usersRes, adoptionRes] = await Promise.all([
++      supabase.rpc("admin_list_users"),
++      supabase.rpc("admin_feature_adoption"),
++    ]);
++    const { data, error: rpcError } = usersRes;
+     if (rpcError) {
+       setError(
+         rpcError.code === "42501"
+@@ -93,6 +102,14 @@ export default function AdminUsers() {
+     } else {
+       setUsers(data || []);
+     }
++    if (adoptionRes.error) {
++      setAdoption(null);
++      setAdoptionError(adoptionRes.error.message || adoptionRes.error.code || "error");
++    } else {
++      const row = Array.isArray(adoptionRes.data) ? adoptionRes.data[0] : adoptionRes.data;
++      setAdoption(row || null);
++      setAdoptionError("");
++    }
+     setLoading(false);
+   }, [t]);
+ 
+@@ -141,6 +158,7 @@ export default function AdminUsers() {
+       <>
+         <AdminOverview users={users} />
+         <AdminSignupsChart users={users} />
++        <AdminFeatureAdoption users={users} adoption={adoption} error={adoptionError} />
+       </>
+     )}
+     <div className="border border-(--color-rule) bg-(--color-paper) animate-fade-in-up">
+diff --git a/src/lib/i18n/translations.js b/src/lib/i18n/translations.js
+index df09629..b455796 100644
+--- a/src/lib/i18n/translations.js
++++ b/src/lib/i18n/translations.js
+@@ -152,6 +152,18 @@ export const TRANSLATIONS = {
+     adminChartLast: "Last {n} months",
+     adminChartTip: "{month}: {count} new users",
+     adminChartNone: "No signups in this period.",
++    adminFeatTitle: "Feature adoption",
++    adminFeatSub: "Users who have used each feature",
++    adminFeatBudgets: "Budgets",
++    adminFeatRecurring: "Recurring entries",
++    adminFeatGoals: "Savings goals",
++    adminFeatLoans: "Loans & debts",
++    adminFeatCategories: "Custom categories",
++    adminFeatAccounts: "Multiple accounts",
++    adminFeatPush: "Push notifications",
++    adminFeatOf: "{count} of {total} · {pct}%",
++    adminFeatAiNote: "AI chat usage isn't recorded per user, so it isn't shown.",
++    adminFeatError: "Couldn't load feature adoption. Run supabase/migration-011-admin-adoption.sql in your Supabase SQL Editor, then refresh.",
+     adminTotalMad: "Total (MAD)",
+     adminLoadError: "Couldn't load users. Run supabase/migration-009-admin-users.sql in your Supabase SQL Editor, then refresh.",
+     adminForbidden: "This area is only available to the administrator.",
+@@ -524,6 +536,18 @@ export const TRANSLATIONS = {
+     adminChartLast: "{n} derniers mois",
+     adminChartTip: "{month} : {count} nouveaux utilisateurs",
+     adminChartNone: "Aucune inscription sur cette période.",
++    adminFeatTitle: "Adoption des fonctionnalités",
++    adminFeatSub: "Utilisateurs ayant utilisé chaque fonctionnalité",
++    adminFeatBudgets: "Budgets",
++    adminFeatRecurring: "Écritures récurrentes",
++    adminFeatGoals: "Objectifs d'épargne",
++    adminFeatLoans: "Prêts et dettes",
++    adminFeatCategories: "Catégories personnalisées",
++    adminFeatAccounts: "Plusieurs comptes",
++    adminFeatPush: "Notifications push",
++    adminFeatOf: "{count} sur {total} · {pct} %",
++    adminFeatAiNote: "L'utilisation du chat IA n'est pas enregistrée par utilisateur, elle n'est donc pas affichée.",
++    adminFeatError: "Impossible de charger l'adoption des fonctionnalités. Exécutez supabase/migration-011-admin-adoption.sql dans l'éditeur SQL de Supabase, puis actualisez.",
+     adminTotalMad: "Total (MAD)",
+     adminLoadError: "Impossible de charger les utilisateurs. Exécutez supabase/migration-009-admin-users.sql dans l'éditeur SQL de Supabase, puis actualisez.",
+     adminForbidden: "Cet espace est réservé à l'administrateur.",
+@@ -887,6 +911,18 @@ export const TRANSLATIONS = {
+     adminChartLast: "آخر {n} أشهر",
+     adminChartTip: "{month}: {count} مستخدمين جدد",
+     adminChartNone: "لا تسجيلات في هذه الفترة.",
++    adminFeatTitle: "استخدام الميزات",
++    adminFeatSub: "المستخدمون الذين استخدموا كل ميزة",
++    adminFeatBudgets: "الميزانيات",
++    adminFeatRecurring: "القيود المتكررة",
++    adminFeatGoals: "أهداف الادخار",
++    adminFeatLoans: "القروض والديون",
++    adminFeatCategories: "فئات مخصصة",
++    adminFeatAccounts: "حسابات متعددة",
++    adminFeatPush: "الإشعارات الفورية",
++    adminFeatOf: "{count} من {total} · {pct}%",
++    adminFeatAiNote: "استخدام الدردشة الذكية غير مسجَّل لكل مستخدم، لذا لا يظهر هنا.",
++    adminFeatError: "تعذر تحميل استخدام الميزات. شغّل supabase/migration-011-admin-adoption.sql في محرر SQL الخاص بـ Supabase ثم حدّث الصفحة.",
+     adminTotalMad: "المجموع (MAD)",
+     adminLoadError: "تعذر تحميل المستخدمين. شغّل supabase/migration-009-admin-users.sql في محرر SQL الخاص بـ Supabase ثم حدّث الصفحة.",
+     adminForbidden: "هذه المنطقة متاحة للمسؤول فقط.",
+diff --git a/supabase/migration-011-admin-adoption.sql b/supabase/migration-011-admin-adoption.sql
+new file mode 100644
+index 0000000..f68cad7
+--- /dev/null
++++ b/supabase/migration-011-admin-adoption.sql
+@@ -0,0 +1,49 @@
++-- Run this once in your Supabase project's SQL Editor.
++-- Adds admin_feature_adoption(): for each feature, how many distinct
++-- users have used it. Same admin-only check as admin_list_users():
++-- anyone other than the confirmed admin@choumchoum.com gets
++-- "not authorized".
++--
++-- Note: AI chat usage is not stored per user anywhere, so it can't be
++-- counted here.
++
++create or replace function public.admin_feature_adoption()
++returns table (
++  total_users bigint,
++  with_budgets bigint,
++  with_recurring bigint,
++  with_goals bigint,
++  with_loans bigint,
++  with_custom_categories bigint,
++  with_push bigint
++)
++language plpgsql
++security definer
++set search_path = public, auth
++stable
++as $$
++begin
++  if not exists (
++    select 1
++    from auth.users au
++    where au.id = auth.uid()
++      and lower(au.email) = 'admin@choumchoum.com'
++      and au.email_confirmed_at is not null
++  ) then
++    raise exception 'not authorized' using errcode = '42501';
++  end if;
++
++  return query
++  select
++    (select count(*) from auth.users),
++    (select count(distinct b.user_id) from public.budgets b),
++    (select count(distinct r.user_id) from public.recurring_rules r),
++    (select count(distinct g.user_id) from public.savings_goals g),
++    (select count(distinct l.user_id) from public.loans l),
++    (select count(distinct c.user_id) from public.categories c),
++    (select count(distinct p.user_id) from public.push_subscriptions p);
++end;
++$$;
++
++revoke all on function public.admin_feature_adoption() from public, anon;
++grant execute on function public.admin_feature_adoption() to authenticated;
+-- 
+2.43.0
+

@@ -1,0 +1,752 @@
+diff --git a/src/LedgerApp.jsx b/src/LedgerApp.jsx
+index d25568a..90cd869 100644
+--- a/src/LedgerApp.jsx
++++ b/src/LedgerApp.jsx
+@@ -300,7 +300,10 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
+         </nav>
+       </div>
+ 
+-      <main key={tab} className="max-w-5xl mx-auto px-5 sm:px-8 py-8 animate-fade-in-up">
++      <main
++        key={tab}
++        className={`${tab === "admin" ? "max-w-7xl" : "max-w-5xl"} mx-auto px-5 sm:px-8 py-8 animate-fade-in-up`}
++      >
+         {tab === "ledger" && (
+           <KpiRow
+             transactions={transactions}
+diff --git a/src/components/AdminFeatureAdoption.jsx b/src/components/AdminFeatureAdoption.jsx
+new file mode 100644
+index 0000000..e1eae55
+--- /dev/null
++++ b/src/components/AdminFeatureAdoption.jsx
+@@ -0,0 +1,71 @@
++import { useMemo } from "react";
++import { useLanguage } from "../lib/i18n/LanguageContext";
++
++// adoption: the row from admin_feature_adoption(), or null if it failed.
++// "Multiple accounts" is derived from the user list, so it always works.
++export default function AdminFeatureAdoption({ users, adoption, error }) {
++  const { t } = useLanguage();
++  const total = users.length;
++
++  const rows = useMemo(() => {
++    if (!adoption) return [];
++    const list = [
++      { key: "budgets", label: t("adminFeatBudgets"), count: Number(adoption.with_budgets) || 0 },
++      { key: "recurring", label: t("adminFeatRecurring"), count: Number(adoption.with_recurring) || 0 },
++      { key: "goals", label: t("adminFeatGoals"), count: Number(adoption.with_goals) || 0 },
++      { key: "loans", label: t("adminFeatLoans"), count: Number(adoption.with_loans) || 0 },
++      {
++        key: "categories",
++        label: t("adminFeatCategories"),
++        count: Number(adoption.with_custom_categories) || 0,
++      },
++      {
++        key: "accounts",
++        label: t("adminFeatAccounts"),
++        count: users.filter((u) => (Number(u.account_count) || 0) >= 2).length,
++      },
++      { key: "push", label: t("adminFeatPush"), count: Number(adoption.with_push) || 0 },
++    ];
++    return list.sort((a, b) => b.count - a.count);
++  }, [adoption, users, t]);
++
++  return (
++    <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6 animate-fade-in-up">
++      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-5">
++        <h2 className="font-serif text-lg font-semibold tracking-tight">{t("adminFeatTitle")}</h2>
++        <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft)">
++          {t("adminFeatSub")}
++        </span>
++      </div>
++
++      {error ? (
++        <p className="text-sm text-(--color-debit)">{t("adminFeatError")} ({error})</p>
++      ) : (
++        <>
++          <ul className="space-y-3">
++            {rows.map((r) => {
++              const pct = total > 0 ? Math.round((r.count / total) * 100) : 0;
++              return (
++                <li key={r.key} title={`${r.label}: ${r.count} / ${total}`}>
++                  <div className="flex items-baseline justify-between gap-3 text-sm">
++                    <span>{r.label}</span>
++                    <span className="font-mono tabular text-xs text-(--color-ink-soft) whitespace-nowrap">
++                      {t("adminFeatOf", { count: r.count, total, pct })}
++                    </span>
++                  </div>
++                  <div className="mt-1.5 h-1.5 w-full bg-(--color-rule) overflow-hidden">
++                    <div
++                      className="h-full bg-(--color-brass) transition-all duration-500 ease-out"
++                      style={{ width: `${pct}%` }}
++                    />
++                  </div>
++                </li>
++              );
++            })}
++          </ul>
++          <p className="mt-4 text-xs text-(--color-ink-soft)">{t("adminFeatAiNote")}</p>
++        </>
++      )}
++    </div>
++  );
++}
+diff --git a/src/components/AdminUserActions.jsx b/src/components/AdminUserActions.jsx
+new file mode 100644
+index 0000000..520c6ce
+--- /dev/null
++++ b/src/components/AdminUserActions.jsx
+@@ -0,0 +1,168 @@
++import { useEffect, useState } from "react";
++import { adminUserAction } from "../lib/adminClient";
++import { useLanguage } from "../lib/i18n/LanguageContext";
++
++const ACTION_BUTTON =
++  "px-3 py-2 border font-mono text-xs uppercase tracking-widest transition-colors disabled:opacity-50";
++
++export default function AdminUserActions({ user, onClose, onChanged }) {
++  const { t } = useLanguage();
++  const [busy, setBusy] = useState("");
++  const [message, setMessage] = useState("");
++  const [error, setError] = useState("");
++  const [confirmEmail, setConfirmEmail] = useState("");
++  const [deleting, setDeleting] = useState(false);
++
++  const name = [user.first_name, user.last_name].filter(Boolean).join(" ");
++  const disabled = Boolean(user.banned_until) && new Date(user.banned_until) > new Date();
++  const emailMatches = confirmEmail.trim().toLowerCase() === (user.email || "").toLowerCase();
++
++  useEffect(() => {
++    function onKey(e) {
++      if (e.key === "Escape" && !busy) onClose();
++    }
++    document.addEventListener("keydown", onKey);
++    return () => document.removeEventListener("keydown", onKey);
++  }, [busy, onClose]);
++
++  async function run(action, doneKey, extra) {
++    setBusy(action);
++    setError("");
++    setMessage("");
++    try {
++      await adminUserAction(action, user.id, extra);
++      if (action === "delete") {
++        onChanged();
++        onClose();
++        return;
++      }
++      setMessage(t(doneKey));
++      if (action !== "reset_password") onChanged();
++    } catch (err) {
++      setError(`${t("adminActionError")} (${err.message})`);
++    } finally {
++      setBusy("");
++    }
++  }
++
++  return (
++    <div
++      className="fixed inset-0 z-30 flex items-center justify-center p-4 bg-(--color-ink)/40 animate-fade-in"
++      onClick={() => !busy && onClose()}
++    >
++      <div
++        role="dialog"
++        aria-modal="true"
++        aria-label={t("adminManageTitle")}
++        onClick={(e) => e.stopPropagation()}
++        className="w-full max-w-lg max-h-[90vh] overflow-y-auto border border-(--color-rule) bg-(--color-paper) p-6 animate-scale-in"
++      >
++        <div className="flex items-baseline justify-between mb-1">
++          <h2 className="font-serif text-lg font-semibold tracking-tight">{t("adminManageTitle")}</h2>
++          <button
++            onClick={onClose}
++            disabled={Boolean(busy)}
++            aria-label={t("adminClose")}
++            className="text-(--color-ink-soft) hover:text-(--color-ink) text-sm"
++          >
++            ✕
++          </button>
++        </div>
++        <p className="text-sm mb-5">
++          {name && <span className="font-semibold">{name} · </span>}
++          <span className="text-(--color-ink-soft) break-all">{user.email}</span>
++          {disabled && (
++            <span className="ms-2 font-mono text-[10px] uppercase tracking-widest text-(--color-debit)">
++              {t("adminDisabled")}
++            </span>
++          )}
++        </p>
++
++        {message && <p className="mb-4 text-sm text-(--color-credit)">{message}</p>}
++        {error && <p className="mb-4 text-sm text-(--color-debit) break-words">{error}</p>}
++
++        <div className="space-y-5">
++          <section>
++            <p className="text-xs text-(--color-ink-soft) mb-2">
++              {t("adminResetPwDesc", { email: user.email })}
++            </p>
++            <button
++              onClick={() => run("reset_password", "adminResetSent")}
++              disabled={Boolean(busy)}
++              className={`${ACTION_BUTTON} border-(--color-rule) hover:border-(--color-brass)`}
++            >
++              {busy === "reset_password" ? t("pleaseWait") : t("adminResetPw")}
++            </button>
++          </section>
++
++          <section className="pt-5 border-t border-(--color-rule)">
++            <p className="text-xs text-(--color-ink-soft) mb-2">
++              {disabled ? t("adminEnableDesc") : t("adminDisableDesc")}
++            </p>
++            <button
++              onClick={() =>
++                disabled
++                  ? run("enable", "adminEnabledDone")
++                  : run("disable", "adminDisabledDone")
++              }
++              disabled={Boolean(busy)}
++              className={`${ACTION_BUTTON} border-(--color-rule) hover:border-(--color-brass)`}
++            >
++              {busy === "disable" || busy === "enable"
++                ? t("pleaseWait")
++                : disabled
++                  ? t("adminEnable")
++                  : t("adminDisable")}
++            </button>
++          </section>
++
++          <section className="pt-5 border-t border-(--color-rule)">
++            <p className="text-xs text-(--color-ink-soft) mb-2">{t("adminDeleteDesc")}</p>
++            {!deleting ? (
++              <button
++                onClick={() => setDeleting(true)}
++                disabled={Boolean(busy)}
++                className={`${ACTION_BUTTON} border-(--color-debit) text-(--color-debit) hover:bg-(--color-debit) hover:text-(--color-paper)`}
++              >
++                {t("adminDelete")}
++              </button>
++            ) : (
++              <div className="space-y-2 animate-fade-in-up">
++                <label className="block text-xs">
++                  {t("adminDeleteConfirmLabel", { email: user.email })}
++                  <input
++                    value={confirmEmail}
++                    onChange={(e) => setConfirmEmail(e.target.value)}
++                    autoFocus
++                    autoComplete="off"
++                    dir="ltr"
++                    className="mt-1 w-full border border-(--color-rule) bg-transparent px-3 py-2 text-sm"
++                  />
++                </label>
++                <div className="flex gap-2">
++                  <button
++                    onClick={() => run("delete", "adminDeletedDone", { confirmEmail })}
++                    disabled={!emailMatches || Boolean(busy)}
++                    className={`${ACTION_BUTTON} border-(--color-debit) bg-(--color-debit) text-(--color-paper)`}
++                  >
++                    {busy === "delete" ? t("pleaseWait") : t("adminDeleteButton")}
++                  </button>
++                  <button
++                    onClick={() => {
++                      setDeleting(false);
++                      setConfirmEmail("");
++                    }}
++                    disabled={Boolean(busy)}
++                    className={`${ACTION_BUTTON} border-(--color-rule) hover:border-(--color-brass)`}
++                  >
++                    {t("cancel")}
++                  </button>
++                </div>
++              </div>
++            )}
++          </section>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/lib/adminClient.js b/src/lib/adminClient.js
+new file mode 100644
+index 0000000..59b4c0c
+--- /dev/null
++++ b/src/lib/adminClient.js
+@@ -0,0 +1,28 @@
++import { supabase } from "./supabaseClient";
++
++async function readError(error) {
++  try {
++    if (error.context?.json) {
++      const body = await error.context.json();
++      if (body?.error) return body.error;
++    }
++  } catch {
++    // fall through to the generic message below
++  }
++  return error.message || "Something went wrong.";
++}
++
++/**
++ * Runs an account action through the admin-users edge function (which
++ * re-checks on the server that the caller is the admin).
++ * action: "reset_password" | "disable" | "enable" | "delete"
++ * For "delete", pass { confirmEmail } — the user's exact email.
++ */
++export async function adminUserAction(action, userId, extra = {}) {
++  const { data, error } = await supabase.functions.invoke("admin-users", {
++    body: { action, userId, ...extra },
++  });
++  if (error) throw new Error(await readError(error));
++  if (data?.error) throw new Error(data.error);
++  return data;
++}
+diff --git a/src/lib/i18n/translations.js b/src/lib/i18n/translations.js
+index df09629..cddf3cb 100644
+--- a/src/lib/i18n/translations.js
++++ b/src/lib/i18n/translations.js
+@@ -152,6 +152,38 @@ export const TRANSLATIONS = {
+     adminChartLast: "Last {n} months",
+     adminChartTip: "{month}: {count} new users",
+     adminChartNone: "No signups in this period.",
++    adminFeatTitle: "Feature adoption",
++    adminFeatSub: "Users who have used each feature",
++    adminFeatBudgets: "Budgets",
++    adminFeatRecurring: "Recurring entries",
++    adminFeatGoals: "Savings goals",
++    adminFeatLoans: "Loans & debts",
++    adminFeatCategories: "Custom categories",
++    adminFeatAccounts: "Multiple accounts",
++    adminFeatPush: "Push notifications",
++    adminFeatOf: "{count} of {total} · {pct}%",
++    adminFeatAiNote: "AI chat usage isn't recorded per user, so it isn't shown.",
++    adminActions: "Actions",
++    adminManage: "Manage",
++    adminDisabled: "Disabled",
++    adminManageTitle: "Manage user",
++    adminClose: "Close",
++    adminResetPw: "Send password reset",
++    adminResetPwDesc: "Emails {email} a link to choose a new password.",
++    adminResetSent: "Password reset email sent.",
++    adminDisable: "Disable account",
++    adminDisableDesc: "Blocks new sign-ins and keeps their data. Someone already signed in may stay signed in for up to an hour.",
++    adminEnable: "Re-enable account",
++    adminEnableDesc: "This account is disabled. Re-enabling lets them sign in again.",
++    adminDisabledDone: "Account disabled.",
++    adminEnabledDone: "Account re-enabled.",
++    adminDelete: "Delete account",
++    adminDeleteDesc: "Permanently deletes this user and all their data (transactions, accounts, budgets, goals, loans). This can't be undone.",
++    adminDeleteConfirmLabel: "Type {email} to confirm",
++    adminDeleteButton: "Delete permanently",
++    adminDeletedDone: "User deleted.",
++    adminActionError: "That didn't work. If you haven't deployed the admin-users function yet, see supabase/functions/admin-users.",
++    adminFeatError: "Couldn't load feature adoption. Run supabase/migration-011-admin-adoption.sql in your Supabase SQL Editor, then refresh.",
+     adminTotalMad: "Total (MAD)",
+     adminLoadError: "Couldn't load users. Run supabase/migration-009-admin-users.sql in your Supabase SQL Editor, then refresh.",
+     adminForbidden: "This area is only available to the administrator.",
+@@ -524,6 +556,38 @@ export const TRANSLATIONS = {
+     adminChartLast: "{n} derniers mois",
+     adminChartTip: "{month} : {count} nouveaux utilisateurs",
+     adminChartNone: "Aucune inscription sur cette période.",
++    adminFeatTitle: "Adoption des fonctionnalités",
++    adminFeatSub: "Utilisateurs ayant utilisé chaque fonctionnalité",
++    adminFeatBudgets: "Budgets",
++    adminFeatRecurring: "Écritures récurrentes",
++    adminFeatGoals: "Objectifs d'épargne",
++    adminFeatLoans: "Prêts et dettes",
++    adminFeatCategories: "Catégories personnalisées",
++    adminFeatAccounts: "Plusieurs comptes",
++    adminFeatPush: "Notifications push",
++    adminFeatOf: "{count} sur {total} · {pct} %",
++    adminFeatAiNote: "L'utilisation du chat IA n'est pas enregistrée par utilisateur, elle n'est donc pas affichée.",
++    adminActions: "Actions",
++    adminManage: "Gérer",
++    adminDisabled: "Désactivé",
++    adminManageTitle: "Gérer l'utilisateur",
++    adminClose: "Fermer",
++    adminResetPw: "Envoyer une réinitialisation",
++    adminResetPwDesc: "Envoie à {email} un lien pour choisir un nouveau mot de passe.",
++    adminResetSent: "E-mail de réinitialisation envoyé.",
++    adminDisable: "Désactiver le compte",
++    adminDisableDesc: "Bloque les nouvelles connexions et conserve les données. Une personne déjà connectée peut le rester jusqu'à une heure.",
++    adminEnable: "Réactiver le compte",
++    adminEnableDesc: "Ce compte est désactivé. Le réactiver lui permet de se reconnecter.",
++    adminDisabledDone: "Compte désactivé.",
++    adminEnabledDone: "Compte réactivé.",
++    adminDelete: "Supprimer le compte",
++    adminDeleteDesc: "Supprime définitivement cet utilisateur et toutes ses données (transactions, comptes, budgets, objectifs, prêts). Action irréversible.",
++    adminDeleteConfirmLabel: "Saisissez {email} pour confirmer",
++    adminDeleteButton: "Supprimer définitivement",
++    adminDeletedDone: "Utilisateur supprimé.",
++    adminActionError: "Cela n'a pas fonctionné. Si vous n'avez pas encore déployé la fonction admin-users, voir supabase/functions/admin-users.",
++    adminFeatError: "Impossible de charger l'adoption des fonctionnalités. Exécutez supabase/migration-011-admin-adoption.sql dans l'éditeur SQL de Supabase, puis actualisez.",
+     adminTotalMad: "Total (MAD)",
+     adminLoadError: "Impossible de charger les utilisateurs. Exécutez supabase/migration-009-admin-users.sql dans l'éditeur SQL de Supabase, puis actualisez.",
+     adminForbidden: "Cet espace est réservé à l'administrateur.",
+@@ -887,6 +951,38 @@ export const TRANSLATIONS = {
+     adminChartLast: "آخر {n} أشهر",
+     adminChartTip: "{month}: {count} مستخدمين جدد",
+     adminChartNone: "لا تسجيلات في هذه الفترة.",
++    adminFeatTitle: "استخدام الميزات",
++    adminFeatSub: "المستخدمون الذين استخدموا كل ميزة",
++    adminFeatBudgets: "الميزانيات",
++    adminFeatRecurring: "القيود المتكررة",
++    adminFeatGoals: "أهداف الادخار",
++    adminFeatLoans: "القروض والديون",
++    adminFeatCategories: "فئات مخصصة",
++    adminFeatAccounts: "حسابات متعددة",
++    adminFeatPush: "الإشعارات الفورية",
++    adminFeatOf: "{count} من {total} · {pct}%",
++    adminFeatAiNote: "استخدام الدردشة الذكية غير مسجَّل لكل مستخدم، لذا لا يظهر هنا.",
++    adminActions: "الإجراءات",
++    adminManage: "إدارة",
++    adminDisabled: "معطّل",
++    adminManageTitle: "إدارة المستخدم",
++    adminClose: "إغلاق",
++    adminResetPw: "إرسال إعادة تعيين كلمة المرور",
++    adminResetPwDesc: "يرسل إلى {email} رابطًا لاختيار كلمة مرور جديدة.",
++    adminResetSent: "تم إرسال رسالة إعادة التعيين.",
++    adminDisable: "تعطيل الحساب",
++    adminDisableDesc: "يمنع تسجيلات الدخول الجديدة ويحتفظ بالبيانات. قد يبقى من سجّل دخوله مسبقًا متصلًا حتى ساعة.",
++    adminEnable: "إعادة تفعيل الحساب",
++    adminEnableDesc: "هذا الحساب معطّل. إعادة تفعيله تتيح له تسجيل الدخول مجددًا.",
++    adminDisabledDone: "تم تعطيل الحساب.",
++    adminEnabledDone: "تمت إعادة تفعيل الحساب.",
++    adminDelete: "حذف الحساب",
++    adminDeleteDesc: "يحذف هذا المستخدم وجميع بياناته نهائيًا (المعاملات والحسابات والميزانيات والأهداف والقروض). لا يمكن التراجع.",
++    adminDeleteConfirmLabel: "اكتب {email} للتأكيد",
++    adminDeleteButton: "حذف نهائي",
++    adminDeletedDone: "تم حذف المستخدم.",
++    adminActionError: "لم تنجح العملية. إن لم تنشر دالة admin-users بعد، راجع supabase/functions/admin-users.",
++    adminFeatError: "تعذر تحميل استخدام الميزات. شغّل supabase/migration-011-admin-adoption.sql في محرر SQL الخاص بـ Supabase ثم حدّث الصفحة.",
+     adminTotalMad: "المجموع (MAD)",
+     adminLoadError: "تعذر تحميل المستخدمين. شغّل supabase/migration-009-admin-users.sql في محرر SQL الخاص بـ Supabase ثم حدّث الصفحة.",
+     adminForbidden: "هذه المنطقة متاحة للمسؤول فقط.",
+diff --git a/supabase/functions/admin-users/index.ts b/supabase/functions/admin-users/index.ts
+new file mode 100644
+index 0000000..f5ac9a0
+--- /dev/null
++++ b/supabase/functions/admin-users/index.ts
+@@ -0,0 +1,162 @@
++// Supabase Edge Function: admin-users
++// Account management for the Admin tab: send a password-reset email,
++// disable / re-enable a user, or delete a user and all their data.
++//
++// Why this is an edge function: these actions need the service role key,
++// which bypasses all row-level security. That key lives only here (it is
++// provided to edge functions automatically) and is never sent to the
++// browser. Every request is re-checked on the server: the caller must be
++// signed in as the confirmed admin account below, and the admin account
++// itself can never be targeted.
++//
++// Deploy via the Supabase Dashboard (Edge Functions -> Deploy a new
++// function, name it exactly "admin-users") or the CLI:
++//   supabase functions deploy admin-users
++// Optional secret: SITE_URL (e.g. https://your-app.vercel.app) — where
++// the password-reset link sends people. If unset, the project's "Site URL"
++// setting (Authentication -> URL Configuration) is used.
++// SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are
++// provided automatically.
++
++import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
++
++const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
++const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
++const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
++const SITE_URL = Deno.env.get("SITE_URL");
++
++const ADMIN_EMAIL = "admin@choumchoum.com";
++// "Disabled" = banned for ~100 years; enabling clears the ban.
++const BAN_FOREVER = "876000h";
++const ACTIONS = ["reset_password", "disable", "enable", "delete"];
++const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++
++const corsHeaders = {
++  "Access-Control-Allow-Origin": "*",
++  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
++  "Access-Control-Allow-Methods": "POST, OPTIONS",
++};
++
++function json(data, status = 200) {
++  return new Response(JSON.stringify(data), {
++    status,
++    headers: { ...corsHeaders, "Content-Type": "application/json" },
++  });
++}
++
++class HttpError extends Error {
++  constructor(status, message) {
++    super(message);
++    this.status = status;
++  }
++}
++
++function isAdmin(user) {
++  return (
++    Boolean(user?.email) &&
++    user.email.toLowerCase() === ADMIN_EMAIL &&
++    Boolean(user.email_confirmed_at)
++  );
++}
++
++async function removeAvatars(admin, userId) {
++  // Best effort: avatars live under "<user id>/" in the avatars bucket.
++  try {
++    const { data: files } = await admin.storage.from("avatars").list(userId);
++    if (files && files.length > 0) {
++      await admin.storage.from("avatars").remove(files.map((f) => `${userId}/${f.name}`));
++    }
++  } catch (_err) {
++    // Not worth failing the deletion over a leftover image.
++  }
++}
++
++async function handle(req) {
++  if (req.method !== "POST") throw new HttpError(405, "Method not allowed.");
++
++  const authHeader = req.headers.get("Authorization");
++  if (!authHeader) throw new HttpError(401, "Missing authorization header.");
++
++  // 1. Who is calling? Ask Supabase to validate their token.
++  const caller = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
++    global: { headers: { Authorization: authHeader } },
++  });
++  const {
++    data: { user },
++    error: authError,
++  } = await caller.auth.getUser();
++  if (authError || !user) throw new HttpError(401, "Unauthorized.");
++  if (!isAdmin(user)) throw new HttpError(403, "Admins only.");
++
++  // 2. What do they want?
++  let body;
++  try {
++    body = await req.json();
++  } catch (_err) {
++    throw new HttpError(400, "Invalid request body.");
++  }
++  const { action, userId } = body || {};
++  if (!ACTIONS.includes(action)) throw new HttpError(400, "Unknown action.");
++  if (typeof userId !== "string" || !UUID_RE.test(userId)) {
++    throw new HttpError(400, "Invalid user id.");
++  }
++
++  // 3. Look the target up with the privileged client.
++  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
++    auth: { autoRefreshToken: false, persistSession: false },
++  });
++  const { data: found, error: findError } = await admin.auth.admin.getUserById(userId);
++  const target = found?.user;
++  if (findError || !target) throw new HttpError(404, "User not found.");
++
++  // The admin account can never be disabled, deleted or reset from here.
++  if (target.id === user.id || (target.email || "").toLowerCase() === ADMIN_EMAIL) {
++    throw new HttpError(400, "The admin account can't be changed from here.");
++  }
++
++  console.log(JSON.stringify({ admin: user.email, action, target: target.id }));
++
++  if (action === "disable" || action === "enable") {
++    const { error } = await admin.auth.admin.updateUserById(target.id, {
++      ban_duration: action === "disable" ? BAN_FOREVER : "none",
++    });
++    if (error) throw new HttpError(400, error.message);
++    return { ok: true, action };
++  }
++
++  if (action === "reset_password") {
++    if (!target.email) throw new HttpError(400, "This user has no email address.");
++    const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
++    const { error } = await anon.auth.resetPasswordForEmail(
++      target.email,
++      SITE_URL ? { redirectTo: SITE_URL } : undefined
++    );
++    if (error) throw new HttpError(400, error.message);
++    return { ok: true, action };
++  }
++
++  // action === "delete" — irreversible, so the caller must also send the
++  // user's exact email as a typed confirmation, checked here, not just in
++  // the UI.
++  const confirmEmail = typeof body.confirmEmail === "string" ? body.confirmEmail.trim().toLowerCase() : "";
++  if (!confirmEmail || confirmEmail !== (target.email || "").toLowerCase()) {
++    throw new HttpError(400, "Confirmation email doesn't match.");
++  }
++  await removeAvatars(admin, target.id);
++  // Rows in accounts, transactions, budgets, goals, loans etc. are removed
++  // automatically (they reference auth.users with ON DELETE CASCADE).
++  const { error: deleteError } = await admin.auth.admin.deleteUser(target.id);
++  if (deleteError) throw new HttpError(400, deleteError.message);
++  return { ok: true, action };
++}
++
++Deno.serve(async (req) => {
++  if (req.method === "OPTIONS") {
++    return new Response("ok", { headers: corsHeaders });
++  }
++  try {
++    return json(await handle(req));
++  } catch (err) {
++    return json({ error: err.message || "Something went wrong." }, err.status || 400);
++  }
++});
+diff --git a/supabase/migration-011-admin-adoption.sql b/supabase/migration-011-admin-adoption.sql
+new file mode 100644
+index 0000000..f68cad7
+--- /dev/null
++++ b/supabase/migration-011-admin-adoption.sql
+@@ -0,0 +1,49 @@
++-- Run this once in your Supabase project's SQL Editor.
++-- Adds admin_feature_adoption(): for each feature, how many distinct
++-- users have used it. Same admin-only check as admin_list_users():
++-- anyone other than the confirmed admin@choumchoum.com gets
++-- "not authorized".
++--
++-- Note: AI chat usage is not stored per user anywhere, so it can't be
++-- counted here.
++
++create or replace function public.admin_feature_adoption()
++returns table (
++  total_users bigint,
++  with_budgets bigint,
++  with_recurring bigint,
++  with_goals bigint,
++  with_loans bigint,
++  with_custom_categories bigint,
++  with_push bigint
++)
++language plpgsql
++security definer
++set search_path = public, auth
++stable
++as $$
++begin
++  if not exists (
++    select 1
++    from auth.users au
++    where au.id = auth.uid()
++      and lower(au.email) = 'admin@choumchoum.com'
++      and au.email_confirmed_at is not null
++  ) then
++    raise exception 'not authorized' using errcode = '42501';
++  end if;
++
++  return query
++  select
++    (select count(*) from auth.users),
++    (select count(distinct b.user_id) from public.budgets b),
++    (select count(distinct r.user_id) from public.recurring_rules r),
++    (select count(distinct g.user_id) from public.savings_goals g),
++    (select count(distinct l.user_id) from public.loans l),
++    (select count(distinct c.user_id) from public.categories c),
++    (select count(distinct p.user_id) from public.push_subscriptions p);
++end;
++$$;
++
++revoke all on function public.admin_feature_adoption() from public, anon;
++grant execute on function public.admin_feature_adoption() to authenticated;
+diff --git a/supabase/migration-012-admin-status.sql b/supabase/migration-012-admin-status.sql
+new file mode 100644
+index 0000000..02ac6db
+--- /dev/null
++++ b/supabase/migration-012-admin-status.sql
+@@ -0,0 +1,101 @@
++-- Run this once in your Supabase project's SQL Editor, AFTER
++-- migration-010-admin-activity.sql.
++-- Replaces admin_list_users() so it also returns banned_until, which the
++-- Admin tab uses to show which accounts are disabled. Same admin-only
++-- check as before.
++
++drop function if exists public.admin_list_users();
++
++create function public.admin_list_users()
++returns table (
++  id uuid,
++  email text,
++  first_name text,
++  last_name text,
++  created_at timestamptz,
++  last_sign_in_at timestamptz,
++  balance_mad numeric,
++  balance_eur numeric,
++  balance_usd numeric,
++  tx_count bigint,
++  account_count bigint,
++  last_tx_date date,
++  banned_until timestamptz
++)
++language plpgsql
++security definer
++set search_path = public, auth
++stable
++as $$
++begin
++  if not exists (
++    select 1
++    from auth.users au
++    where au.id = auth.uid()
++      and lower(au.email) = 'admin@choumchoum.com'
++      and au.email_confirmed_at is not null
++  ) then
++    raise exception 'not authorized' using errcode = '42501';
++  end if;
++
++  return query
++  with opening as (
++    select a.user_id, coalesce(a.currency, 'MAD') as currency,
++           sum(coalesce(a.opening_balance, 0)) as amount
++    from public.accounts a
++    group by a.user_id, coalesce(a.currency, 'MAD')
++  ),
++  moves as (
++    select t.user_id, coalesce(a.currency, 'MAD') as currency,
++           sum(case when t.type = 'income' then t.amount else -t.amount end) as amount
++    from public.transactions t
++    left join public.accounts a on a.id = t.account_id
++    group by t.user_id, coalesce(a.currency, 'MAD')
++  ),
++  combined as (
++    select o.user_id, o.currency, o.amount from opening o
++    union all
++    select m.user_id, m.currency, m.amount from moves m
++  ),
++  totals as (
++    select c.user_id,
++      coalesce(sum(c.amount) filter (where c.currency = 'MAD'), 0) as mad,
++      coalesce(sum(c.amount) filter (where c.currency = 'EUR'), 0) as eur,
++      coalesce(sum(c.amount) filter (where c.currency = 'USD'), 0) as usd
++    from combined c
++    group by c.user_id
++  ),
++  tx_stats as (
++    select t.user_id, count(*) as n_tx, max(t.date) as last_date
++    from public.transactions t
++    group by t.user_id
++  ),
++  acct_stats as (
++    select a.user_id, count(*) as n_acct
++    from public.accounts a
++    group by a.user_id
++  )
++  select
++    u.id,
++    u.email::text,
++    coalesce(u.raw_user_meta_data->>'first_name', '')::text,
++    coalesce(u.raw_user_meta_data->>'last_name', '')::text,
++    u.created_at,
++    u.last_sign_in_at,
++    coalesce(tt.mad, 0),
++    coalesce(tt.eur, 0),
++    coalesce(tt.usd, 0),
++    coalesce(ts.n_tx, 0)::bigint,
++    coalesce(ac.n_acct, 0)::bigint,
++    ts.last_date::date,
++    u.banned_until
++  from auth.users u
++  left join totals tt on tt.user_id = u.id
++  left join tx_stats ts on ts.user_id = u.id
++  left join acct_stats ac on ac.user_id = u.id
++  order by u.created_at desc;
++end;
++$$;
++
++revoke all on function public.admin_list_users() from public, anon;
++grant execute on function public.admin_list_users() to authenticated;
