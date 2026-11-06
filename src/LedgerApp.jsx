@@ -6,6 +6,7 @@ import { useAccounts } from "./hooks/useAccounts";
 import { useSavingsGoals } from "./hooks/useSavingsGoals";
 import { useCustomCategories } from "./hooks/useCustomCategories";
 import { useLoans } from "./hooks/useLoans";
+import { useMonthPlans } from "./hooks/useMonthPlans";
 import { DEFAULT_CATEGORIES } from "./lib/categories";
 import { computeNotifications } from "./lib/notifications";
 import { exportTransactionsCSV, exportFullBackup, readBackupFile } from "./lib/export";
@@ -25,6 +26,7 @@ import CashFlowForecast from "./components/CashFlowForecast";
 import GoalsPanel from "./components/GoalsPanel";
 import CategoriesPanel from "./components/CategoriesPanel";
 import LoansPanel from "./components/LoansPanel";
+import MonthCardsPanel from "./components/MonthCardsPanel";
 import SpendingInsight from "./components/SpendingInsight";
 import AssistantChat from "./components/AssistantChat";
 import ImportWizard from "./components/ImportWizard";
@@ -42,9 +44,10 @@ function currentMonthKey() {
 
 const EMPTY_FILTERS = { search: "", type: "all", category: "all", from: "", to: "", accountId: "all" };
 
-const TAB_IDS = ["ledger", "budgets", "recurring", "accounts", "goals", "loans", "categories", "trends"];
+const TAB_IDS = ["ledger", "months", "budgets", "recurring", "accounts", "goals", "loans", "categories", "trends"];
 const TAB_KEYS = {
   ledger: "tabLedger",
+  months: "tabMonths",
   budgets: "tabBudgets",
   recurring: "tabRecurring",
   accounts: "tabAccounts",
@@ -83,6 +86,14 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
   const { goals, addGoal, contribute, deleteGoal } = useSavingsGoals(user.id);
   const { categories: customCategories, addCategory, deleteCategory } = useCustomCategories(user.id);
   const { loans, addLoan, recordPayment, deleteLoan } = useLoans(user.id);
+  const {
+    plans: monthPlans,
+    loading: monthPlansLoading,
+    saveError: monthPlansSaveError,
+    updatePlan: updateMonthPlan,
+    addMonth,
+    deleteMonth,
+  } = useMonthPlans(user.id);
 
   const allCategories = useMemo(
     () => [
@@ -363,6 +374,17 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
               />
             </div>
           </div>
+        )}
+
+        {tab === "months" && (
+          <MonthCardsPanel
+            plans={monthPlans}
+            loading={monthPlansLoading}
+            saveError={monthPlansSaveError}
+            updatePlan={updateMonthPlan}
+            addMonth={addMonth}
+            deleteMonth={deleteMonth}
+          />
         )}
 
         {tab === "budgets" && (
