@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { formatAmount } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 import { useCountUp } from "../hooks/useCountUp";
+import { transferDeltas, round2 } from "../lib/balances";
 
 const CURRENCY_ORDER = ["MAD", "EUR", "USD"];
 
@@ -27,7 +28,7 @@ function Card({ label, children }) {
   );
 }
 
-export default function KpiRow({ transactions, accounts, income, expense }) {
+export default function KpiRow({ transactions, accounts, transfers = [], income, expense }) {
   const { t } = useLanguage();
 
   // Total balance: opening balances + every transaction, per currency
@@ -44,13 +45,17 @@ export default function KpiRow({ transactions, accounts, income, expense }) {
       const c = (tx.account_id && accountCurrency.get(tx.account_id)) || "MAD";
       result[c] = (result[c] || 0) + signed;
     }
+    for (const [id, delta] of transferDeltas(accounts, transfers)) {
+      const c = accountCurrency.get(id) || "MAD";
+      result[c] = (result[c] || 0) + delta;
+    }
     // MAD is always shown; EUR/USD only when an account uses them.
     const present = new Set(["MAD", ...accounts.map((a) => a.currency || "MAD")]);
     return CURRENCY_ORDER.filter((c) => present.has(c)).map((c) => ({
       currency: c,
-      value: result[c] || 0,
+      value: round2(result[c] || 0),
     }));
-  }, [transactions, accounts]);
+  }, [transactions, accounts, transfers]);
 
   // Spending: this month so far vs. the same days of last month, so the
   // comparison stays fair early in the month.

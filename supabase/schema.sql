@@ -84,6 +84,27 @@ create table if not exists loans (
   created_at timestamptz not null default now()
 );
 
+-- Account-to-account transfers: one row moves `amount` out of the source
+-- account and `to_amount` into the destination (they differ only when the
+-- two accounts use different currencies). Kept separate from transactions
+-- so moving your own money never counts as income or spending.
+create table if not exists transfers (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  from_account_id uuid references accounts(id) on delete set null,
+  to_account_id uuid references accounts(id) on delete set null,
+  amount numeric not null check (amount > 0),
+  to_amount numeric not null check (to_amount > 0),
+  date date not null,
+  note text default '',
+  created_at timestamptz not null default now(),
+  check (
+    from_account_id is null
+    or to_account_id is null
+    or from_account_id <> to_account_id
+  )
+);
+
 -- Push notification subscriptions (one row per device) and a log used
 -- only to avoid re-sending the same alert every time the daily check
 -- runs.
@@ -111,6 +132,7 @@ alter table recurring_rules enable row level security;
 alter table savings_goals enable row level security;
 alter table categories enable row level security;
 alter table loans enable row level security;
+alter table transfers enable row level security;
 alter table push_subscriptions enable row level security;
 alter table push_notification_log enable row level security;
 
@@ -149,6 +171,21 @@ create policy "Users manage their own loans"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+create policy "Users manage their own transfers"
+  on transfers for all
+  using (auth.uid() = user_id)
+  with check (
+    auth.uid() = user_id
+    and (
+      from_account_id is null
+      or exists (select 1 from accounts a where a.id = from_account_id and a.user_id = auth.uid())
+    )
+    and (
+      to_account_id is null
+      or exists (select 1 from accounts a where a.id = to_account_id and a.user_id = auth.uid())
+    )
+  );
+
 create policy "Users manage their own push subscriptions"
   on push_subscriptions for all
   using (auth.uid() = user_id)
@@ -159,6 +196,9 @@ create policy "Users manage their own push subscriptions"
 
 create index if not exists transactions_user_date_idx on transactions (user_id, date desc);
 create index if not exists transactions_account_idx on transactions (account_id);
+create index if not exists transfers_user_date_idx on transfers (user_id, date desc);
+create index if not exists transfers_from_idx on transfers (from_account_id);
+create index if not exists transfers_to_idx on transfers (to_account_id);
 
 -- Profile pictures. First/last name and the avatar URL itself live in
 -- Supabase Auth's built-in user metadata, not a table.

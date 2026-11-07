@@ -1,4 +1,5 @@
 import { todayISO } from "./format";
+import { transferDeltas } from "./balances";
 
 function round2(n) {
   return Math.round(n * 100) / 100;
@@ -42,7 +43,7 @@ function monthSummary(transactions, key, catLabel) {
  * recurring bills. Deliberately excludes the raw transaction list
  * (keeps the payload small and avoids sending unnecessary detail).
  */
-export function buildChatContext({ transactions, budgets, goals, loans, accounts, rules, catLabel }) {
+export function buildChatContext({ transactions, budgets, goals, loans, accounts, transfers = [], rules, catLabel }) {
   const thisMonthKey = monthKeyOffset(0);
   const lastMonthKey = monthKeyOffset(-1);
   const thisMonth = monthSummary(transactions, thisMonthKey, catLabel);
@@ -66,6 +67,14 @@ export function buildChatContext({ transactions, budgets, goals, loans, accounts
       // in the app.
       totalsByCurrency.MAD = (totalsByCurrency.MAD || 0) + signed;
     }
+  }
+  // Transfers move money between accounts (not income or spending), so
+  // they only change per-account balances, each side in its own currency.
+  for (const [id, delta] of transferDeltas(accounts, transfers)) {
+    if (delta === 0) continue;
+    accountBalances.set(id, accountBalances.get(id) + delta);
+    const curr = accountCurrency.get(id) || "MAD";
+    totalsByCurrency[curr] = (totalsByCurrency[curr] || 0) + delta;
   }
   const currencyKeys = Object.keys(totalsByCurrency);
   // A single netWorth figure only makes sense if everything's in one

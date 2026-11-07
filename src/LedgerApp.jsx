@@ -3,6 +3,7 @@ import { useTransactions } from "./hooks/useTransactions";
 import { useBudgets } from "./hooks/useBudgets";
 import { useRecurring } from "./hooks/useRecurring";
 import { useAccounts } from "./hooks/useAccounts";
+import { useTransfers } from "./hooks/useTransfers";
 import { useSavingsGoals } from "./hooks/useSavingsGoals";
 import { useCustomCategories } from "./hooks/useCustomCategories";
 import { useLoans } from "./hooks/useLoans";
@@ -21,6 +22,7 @@ import BudgetPanel from "./components/BudgetPanel";
 import RecurringPanel from "./components/RecurringPanel";
 import TrendsChart from "./components/TrendsChart";
 import AccountsPanel from "./components/AccountsPanel";
+import TransferPanel from "./components/TransferPanel";
 import NetWorthSummary from "./components/NetWorthSummary";
 import CashFlowForecast from "./components/CashFlowForecast";
 import GoalsPanel from "./components/GoalsPanel";
@@ -83,6 +85,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
     user.id,
     t("defaultAccountName")
   );
+  const { transfers, addTransfer, deleteTransfer } = useTransfers(user.id);
   const { goals, addGoal, contribute, deleteGoal } = useSavingsGoals(user.id);
   const { categories: customCategories, addCategory, deleteCategory } = useCustomCategories(user.id);
   const { loans, addLoan, recordPayment, deleteLoan } = useLoans(user.id);
@@ -333,6 +336,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
           <KpiRow
             transactions={transactions}
             accounts={accounts}
+            transfers={transfers}
             income={income}
             expense={expense}
           />
@@ -412,13 +416,21 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
 
         {tab === "accounts" && (
           <div className="max-w-xl space-y-6">
-            <NetWorthSummary transactions={transactions} accounts={accounts} />
+            <NetWorthSummary transactions={transactions} accounts={accounts} transfers={transfers} />
             <CashFlowForecast
               transactions={transactions}
               accounts={accounts}
+              transfers={transfers}
               rules={rules}
               loans={loans}
               catLabel={catLabel}
+            />
+            <TransferPanel
+              accounts={accounts}
+              transactions={transactions}
+              transfers={transfers}
+              addTransfer={addTransfer}
+              deleteTransfer={deleteTransfer}
             />
             <AccountsPanel
               accounts={accounts}
@@ -497,6 +509,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
         goals={goals}
         loans={loans}
         accounts={accounts}
+        transfers={transfers}
         rules={rules}
         catLabel={catLabel}
         onCreateGoal={addGoal}

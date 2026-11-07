@@ -13,6 +13,7 @@ export default function AssistantChat({
   goals,
   loans,
   accounts,
+  transfers,
   rules,
   catLabel,
   onCreateGoal,
@@ -68,7 +69,7 @@ export default function AssistantChat({
     setError("");
 
     try {
-      const context = buildChatContext({ transactions, budgets, goals, loans, accounts, rules, catLabel });
+      const context = buildChatContext({ transactions, budgets, goals, loans, accounts, transfers, rules, catLabel });
       const apiMessages = nextMessages.map((m) => ({ role: m.role, content: m.content }));
       const { reply, action, suggestions } = await chatWithAssistant(apiMessages, context, lang);
       setMessages((prev) => [

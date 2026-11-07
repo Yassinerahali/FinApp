@@ -3,6 +3,7 @@ import { useLanguage } from "../lib/i18n/LanguageContext";
 import { formatAmount, formatDate, todayISO } from "../lib/format";
 import { projectFutureOccurrences } from "../lib/recurring";
 import { useCountUp } from "../hooks/useCountUp";
+import { transferDeltas } from "../lib/balances";
 
 const PERIODS = [30, 60, 90];
 const MAX_EVENTS_SHOWN = 20;
@@ -13,7 +14,7 @@ function addDays(iso, days) {
   return d.toISOString().slice(0, 10);
 }
 
-function buildForecast({ transactions, accounts, rules, loans, catLabel, days }) {
+function buildForecast({ transactions, accounts, transfers, rules, loans, catLabel, days }) {
   const today = todayISO();
   const endISO = addDays(today, days);
 
@@ -25,8 +26,12 @@ function buildForecast({ transactions, accounts, rules, loans, catLabel, days })
   const madAccountIds = new Set(madAccounts.map((a) => a.id));
   const hasNonMadAccounts = accounts.some((a) => (a.currency || "MAD") !== "MAD");
 
+  const madTransferDeltas = transferDeltas(madAccounts, transfers);
   const currentBalance =
-    madAccounts.reduce((sum, a) => sum + (a.opening_balance || 0), 0) +
+    madAccounts.reduce(
+      (sum, a) => sum + (a.opening_balance || 0) + (madTransferDeltas.get(a.id) || 0),
+      0
+    ) +
     transactions
       .filter((tx) => !tx.account_id || madAccountIds.has(tx.account_id))
       .reduce((sum, tx) => sum + (tx.type === "income" ? tx.amount : -tx.amount), 0);
@@ -77,13 +82,13 @@ function buildForecast({ transactions, accounts, rules, loans, catLabel, days })
   };
 }
 
-export default function CashFlowForecast({ transactions, accounts, rules, loans, catLabel }) {
+export default function CashFlowForecast({ transactions, accounts, transfers = [], rules, loans, catLabel }) {
   const { t, locale } = useLanguage();
   const [days, setDays] = useState(30);
 
   const forecast = useMemo(
-    () => buildForecast({ transactions, accounts, rules, loans, catLabel, days }),
-    [transactions, accounts, rules, loans, catLabel, days]
+    () => buildForecast({ transactions, accounts, transfers, rules, loans, catLabel, days }),
+    [transactions, accounts, transfers, rules, loans, catLabel, days]
   );
 
   const animatedProjected = useCountUp(forecast.projectedBalance);

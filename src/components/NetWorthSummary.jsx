@@ -2,10 +2,11 @@ import { useMemo } from "react";
 import { formatAmount } from "../lib/format";
 import { useLanguage } from "../lib/i18n/LanguageContext";
 import { useCountUp } from "../hooks/useCountUp";
+import { transferDeltas, round2 } from "../lib/balances";
 
 const CURRENCY_ORDER = ["MAD", "EUR", "USD"];
 
-export default function NetWorthSummary({ transactions, accounts }) {
+export default function NetWorthSummary({ transactions, accounts, transfers = [] }) {
   const { t } = useLanguage();
 
   const { totalsByCurrency, byAccount, unassigned, activeCurrencies } = useMemo(() => {
@@ -34,13 +35,27 @@ export default function NetWorthSummary({ transactions, accounts }) {
       }
     }
 
+    // Transfers: money leaving one account arrives in another, so each
+    // side is applied in its own account's currency (same-currency
+    // transfers net to zero in the total).
+    for (const [id, delta] of transferDeltas(accounts, transfers)) {
+      if (delta === 0) continue;
+      byAccount.set(id, byAccount.get(id) + delta);
+      const curr = accountCurrency.get(id) || "MAD";
+      totalsByCurrency[curr] = (totalsByCurrency[curr] || 0) + delta;
+    }
+
+    for (const id of byAccount.keys()) byAccount.set(id, round2(byAccount.get(id)));
+    for (const c of Object.keys(totalsByCurrency)) totalsByCurrency[c] = round2(totalsByCurrency[c]);
+    unassigned = round2(unassigned);
+
     const present = new Set(accounts.map((a) => a.currency || "MAD"));
     if (unassigned !== 0) present.add("MAD");
     const activeCurrencies = CURRENCY_ORDER.filter((c) => present.has(c));
     if (activeCurrencies.length === 0) activeCurrencies.push("MAD");
 
     return { totalsByCurrency, byAccount, unassigned, activeCurrencies };
-  }, [transactions, accounts]);
+  }, [transactions, accounts, transfers]);
 
   // Fixed number of hook calls regardless of how many currencies are
   // actually in play — animate all three, only render the active ones.
