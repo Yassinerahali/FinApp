@@ -1,0 +1,1016 @@
+From a2faf740c9fb417a01b0dbc9606185de0d644f0d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 7 Nov 2026 17:24:26 +0000
+Subject: [PATCH] Add account-to-account transfers with correct balances
+
+---
+ src/LedgerApp.jsx                    |  15 +-
+ src/components/AssistantChat.jsx     |   3 +-
+ src/components/CashFlowForecast.jsx  |  15 +-
+ src/components/KpiRow.jsx            |  11 +-
+ src/components/NetWorthSummary.jsx   |  19 +-
+ src/components/TransferPanel.jsx     | 350 +++++++++++++++++++++++++++
+ src/hooks/useTransfers.js            |  59 +++++
+ src/lib/balances.js                  |  55 +++++
+ src/lib/chatContext.js               |  11 +-
+ src/lib/i18n/translations.js         |  75 ++++++
+ supabase/migration-014-transfers.sql |  67 +++++
+ supabase/schema.sql                  |  40 +++
+ 12 files changed, 707 insertions(+), 13 deletions(-)
+ create mode 100644 src/components/TransferPanel.jsx
+ create mode 100644 src/hooks/useTransfers.js
+ create mode 100644 src/lib/balances.js
+ create mode 100644 supabase/migration-014-transfers.sql
+
+diff --git a/src/LedgerApp.jsx b/src/LedgerApp.jsx
+index fd8b4e6..da5cb3a 100644
+--- a/src/LedgerApp.jsx
++++ b/src/LedgerApp.jsx
+@@ -3,6 +3,7 @@ import { useTransactions } from "./hooks/useTransactions";
+ import { useBudgets } from "./hooks/useBudgets";
+ import { useRecurring } from "./hooks/useRecurring";
+ import { useAccounts } from "./hooks/useAccounts";
++import { useTransfers } from "./hooks/useTransfers";
+ import { useSavingsGoals } from "./hooks/useSavingsGoals";
+ import { useCustomCategories } from "./hooks/useCustomCategories";
+ import { useLoans } from "./hooks/useLoans";
+@@ -21,6 +22,7 @@ import BudgetPanel from "./components/BudgetPanel";
+ import RecurringPanel from "./components/RecurringPanel";
+ import TrendsChart from "./components/TrendsChart";
+ import AccountsPanel from "./components/AccountsPanel";
++import TransferPanel from "./components/TransferPanel";
+ import NetWorthSummary from "./components/NetWorthSummary";
+ import CashFlowForecast from "./components/CashFlowForecast";
+ import GoalsPanel from "./components/GoalsPanel";
+@@ -83,6 +85,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
+     user.id,
+     t("defaultAccountName")
+   );
++  const { transfers, addTransfer, deleteTransfer } = useTransfers(user.id);
+   const { goals, addGoal, contribute, deleteGoal } = useSavingsGoals(user.id);
+   const { categories: customCategories, addCategory, deleteCategory } = useCustomCategories(user.id);
+   const { loans, addLoan, recordPayment, deleteLoan } = useLoans(user.id);
+@@ -333,6 +336,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
+           <KpiRow
+             transactions={transactions}
+             accounts={accounts}
++            transfers={transfers}
+             income={income}
+             expense={expense}
+           />
+@@ -412,14 +416,22 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
+ 
+         {tab === "accounts" && (
+           <div className="max-w-xl space-y-6">
+-            <NetWorthSummary transactions={transactions} accounts={accounts} />
++            <NetWorthSummary transactions={transactions} accounts={accounts} transfers={transfers} />
+             <CashFlowForecast
+               transactions={transactions}
+               accounts={accounts}
++              transfers={transfers}
+               rules={rules}
+               loans={loans}
+               catLabel={catLabel}
+             />
++            <TransferPanel
++              accounts={accounts}
++              transactions={transactions}
++              transfers={transfers}
++              addTransfer={addTransfer}
++              deleteTransfer={deleteTransfer}
++            />
+             <AccountsPanel
+               accounts={accounts}
+               addAccount={addAccount}
+@@ -497,6 +509,7 @@ export default function LedgerApp({ user, signOut, updateProfile, uploadAvatar }
+         goals={goals}
+         loans={loans}
+         accounts={accounts}
++        transfers={transfers}
+         rules={rules}
+         catLabel={catLabel}
+         onCreateGoal={addGoal}
+diff --git a/src/components/AssistantChat.jsx b/src/components/AssistantChat.jsx
+index 96c6dec..0b1e180 100644
+--- a/src/components/AssistantChat.jsx
++++ b/src/components/AssistantChat.jsx
+@@ -13,6 +13,7 @@ export default function AssistantChat({
+   goals,
+   loans,
+   accounts,
++  transfers,
+   rules,
+   catLabel,
+   onCreateGoal,
+@@ -68,7 +69,7 @@ export default function AssistantChat({
+     setError("");
+ 
+     try {
+-      const context = buildChatContext({ transactions, budgets, goals, loans, accounts, rules, catLabel });
++      const context = buildChatContext({ transactions, budgets, goals, loans, accounts, transfers, rules, catLabel });
+       const apiMessages = nextMessages.map((m) => ({ role: m.role, content: m.content }));
+       const { reply, action, suggestions } = await chatWithAssistant(apiMessages, context, lang);
+       setMessages((prev) => [
+diff --git a/src/components/CashFlowForecast.jsx b/src/components/CashFlowForecast.jsx
+index 1372f8e..2166871 100644
+--- a/src/components/CashFlowForecast.jsx
++++ b/src/components/CashFlowForecast.jsx
+@@ -3,6 +3,7 @@ import { useLanguage } from "../lib/i18n/LanguageContext";
+ import { formatAmount, formatDate, todayISO } from "../lib/format";
+ import { projectFutureOccurrences } from "../lib/recurring";
+ import { useCountUp } from "../hooks/useCountUp";
++import { transferDeltas } from "../lib/balances";
+ 
+ const PERIODS = [30, 60, 90];
+ const MAX_EVENTS_SHOWN = 20;
+@@ -13,7 +14,7 @@ function addDays(iso, days) {
+   return d.toISOString().slice(0, 10);
+ }
+ 
+-function buildForecast({ transactions, accounts, rules, loans, catLabel, days }) {
++function buildForecast({ transactions, accounts, transfers, rules, loans, catLabel, days }) {
+   const today = todayISO();
+   const endISO = addDays(today, days);
+ 
+@@ -25,8 +26,12 @@ function buildForecast({ transactions, accounts, rules, loans, catLabel, days })
+   const madAccountIds = new Set(madAccounts.map((a) => a.id));
+   const hasNonMadAccounts = accounts.some((a) => (a.currency || "MAD") !== "MAD");
+ 
++  const madTransferDeltas = transferDeltas(madAccounts, transfers);
+   const currentBalance =
+-    madAccounts.reduce((sum, a) => sum + (a.opening_balance || 0), 0) +
++    madAccounts.reduce(
++      (sum, a) => sum + (a.opening_balance || 0) + (madTransferDeltas.get(a.id) || 0),
++      0
++    ) +
+     transactions
+       .filter((tx) => !tx.account_id || madAccountIds.has(tx.account_id))
+       .reduce((sum, tx) => sum + (tx.type === "income" ? tx.amount : -tx.amount), 0);
+@@ -77,13 +82,13 @@ function buildForecast({ transactions, accounts, rules, loans, catLabel, days })
+   };
+ }
+ 
+-export default function CashFlowForecast({ transactions, accounts, rules, loans, catLabel }) {
++export default function CashFlowForecast({ transactions, accounts, transfers = [], rules, loans, catLabel }) {
+   const { t, locale } = useLanguage();
+   const [days, setDays] = useState(30);
+ 
+   const forecast = useMemo(
+-    () => buildForecast({ transactions, accounts, rules, loans, catLabel, days }),
+-    [transactions, accounts, rules, loans, catLabel, days]
++    () => buildForecast({ transactions, accounts, transfers, rules, loans, catLabel, days }),
++    [transactions, accounts, transfers, rules, loans, catLabel, days]
+   );
+ 
+   const animatedProjected = useCountUp(forecast.projectedBalance);
+diff --git a/src/components/KpiRow.jsx b/src/components/KpiRow.jsx
+index 378e8bf..1654212 100644
+--- a/src/components/KpiRow.jsx
++++ b/src/components/KpiRow.jsx
+@@ -2,6 +2,7 @@ import { useMemo } from "react";
+ import { formatAmount } from "../lib/format";
+ import { useLanguage } from "../lib/i18n/LanguageContext";
+ import { useCountUp } from "../hooks/useCountUp";
++import { transferDeltas, round2 } from "../lib/balances";
+ 
+ const CURRENCY_ORDER = ["MAD", "EUR", "USD"];
+ 
+@@ -27,7 +28,7 @@ function Card({ label, children }) {
+   );
+ }
+ 
+-export default function KpiRow({ transactions, accounts, income, expense }) {
++export default function KpiRow({ transactions, accounts, transfers = [], income, expense }) {
+   const { t } = useLanguage();
+ 
+   // Total balance: opening balances + every transaction, per currency
+@@ -44,13 +45,17 @@ export default function KpiRow({ transactions, accounts, income, expense }) {
+       const c = (tx.account_id && accountCurrency.get(tx.account_id)) || "MAD";
+       result[c] = (result[c] || 0) + signed;
+     }
++    for (const [id, delta] of transferDeltas(accounts, transfers)) {
++      const c = accountCurrency.get(id) || "MAD";
++      result[c] = (result[c] || 0) + delta;
++    }
+     // MAD is always shown; EUR/USD only when an account uses them.
+     const present = new Set(["MAD", ...accounts.map((a) => a.currency || "MAD")]);
+     return CURRENCY_ORDER.filter((c) => present.has(c)).map((c) => ({
+       currency: c,
+-      value: result[c] || 0,
++      value: round2(result[c] || 0),
+     }));
+-  }, [transactions, accounts]);
++  }, [transactions, accounts, transfers]);
+ 
+   // Spending: this month so far vs. the same days of last month, so the
+   // comparison stays fair early in the month.
+diff --git a/src/components/NetWorthSummary.jsx b/src/components/NetWorthSummary.jsx
+index c193256..aca20cf 100644
+--- a/src/components/NetWorthSummary.jsx
++++ b/src/components/NetWorthSummary.jsx
+@@ -2,10 +2,11 @@ import { useMemo } from "react";
+ import { formatAmount } from "../lib/format";
+ import { useLanguage } from "../lib/i18n/LanguageContext";
+ import { useCountUp } from "../hooks/useCountUp";
++import { transferDeltas, round2 } from "../lib/balances";
+ 
+ const CURRENCY_ORDER = ["MAD", "EUR", "USD"];
+ 
+-export default function NetWorthSummary({ transactions, accounts }) {
++export default function NetWorthSummary({ transactions, accounts, transfers = [] }) {
+   const { t } = useLanguage();
+ 
+   const { totalsByCurrency, byAccount, unassigned, activeCurrencies } = useMemo(() => {
+@@ -34,13 +35,27 @@ export default function NetWorthSummary({ transactions, accounts }) {
+       }
+     }
+ 
++    // Transfers: money leaving one account arrives in another, so each
++    // side is applied in its own account's currency (same-currency
++    // transfers net to zero in the total).
++    for (const [id, delta] of transferDeltas(accounts, transfers)) {
++      if (delta === 0) continue;
++      byAccount.set(id, byAccount.get(id) + delta);
++      const curr = accountCurrency.get(id) || "MAD";
++      totalsByCurrency[curr] = (totalsByCurrency[curr] || 0) + delta;
++    }
++
++    for (const id of byAccount.keys()) byAccount.set(id, round2(byAccount.get(id)));
++    for (const c of Object.keys(totalsByCurrency)) totalsByCurrency[c] = round2(totalsByCurrency[c]);
++    unassigned = round2(unassigned);
++
+     const present = new Set(accounts.map((a) => a.currency || "MAD"));
+     if (unassigned !== 0) present.add("MAD");
+     const activeCurrencies = CURRENCY_ORDER.filter((c) => present.has(c));
+     if (activeCurrencies.length === 0) activeCurrencies.push("MAD");
+ 
+     return { totalsByCurrency, byAccount, unassigned, activeCurrencies };
+-  }, [transactions, accounts]);
++  }, [transactions, accounts, transfers]);
+ 
+   // Fixed number of hook calls regardless of how many currencies are
+   // actually in play — animate all three, only render the active ones.
+diff --git a/src/components/TransferPanel.jsx b/src/components/TransferPanel.jsx
+new file mode 100644
+index 0000000..9bcc1c2
+--- /dev/null
++++ b/src/components/TransferPanel.jsx
+@@ -0,0 +1,350 @@
++import { useMemo, useState } from "react";
++import { useLanguage } from "../lib/i18n/LanguageContext";
++import { formatAmount, formatDate, todayISO } from "../lib/format";
++import { accountBalances, round2 } from "../lib/balances";
++
++const HISTORY_LIMIT = 15;
++
++export default function TransferPanel({ accounts, transactions, transfers, addTransfer, deleteTransfer }) {
++  const { t, locale } = useLanguage();
++  const [fromSel, setFromSel] = useState("");
++  const [toSel, setToSel] = useState("");
++  const [amount, setAmount] = useState("");
++  const [received, setReceived] = useState("");
++  const [date, setDate] = useState(todayISO());
++  const [note, setNote] = useState("");
++  const [error, setError] = useState("");
++  const [saving, setSaving] = useState(false);
++  const [showAll, setShowAll] = useState(false);
++
++  const byId = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
++  const balances = useMemo(
++    () => accountBalances(accounts, transactions, transfers),
++    [accounts, transactions, transfers]
++  );
++
++  // Selections fall back to sensible defaults (first account, then the
++  // first *other* account) so there's no effect syncing needed when
++  // accounts load or one is deleted.
++  const fromId = byId[fromSel] ? fromSel : accounts[0]?.id || "";
++  const toId =
++    byId[toSel] && toSel !== fromId ? toSel : accounts.find((a) => a.id !== fromId)?.id || "";
++  const from = byId[fromId];
++  const to = byId[toId];
++
++  const fromCurrency = from?.currency || "MAD";
++  const toCurrency = to?.currency || "MAD";
++  const crossCurrency = Boolean(from && to) && fromCurrency !== toCurrency;
++
++  const sentValue = round2(parseFloat(amount) || 0);
++  const receivedValue = crossCurrency ? round2(parseFloat(received) || 0) : sentValue;
++
++  const fromAfter = from ? round2((balances.get(fromId) || 0) - sentValue) : 0;
++  const toAfter = to ? round2((balances.get(toId) || 0) + receivedValue) : 0;
++  const showPreview = from && to && sentValue > 0 && receivedValue > 0;
++
++  function swap() {
++    setFromSel(toId);
++    setToSel(fromId);
++    setReceived("");
++  }
++
++  async function handleSubmit(e) {
++    e.preventDefault();
++    setError("");
++    if (!from || !to || fromId === toId) {
++      setError(t("transferSameAccount"));
++      return;
++    }
++    if (!(sentValue > 0) || !(receivedValue > 0)) {
++      setError(t("transferInvalidAmount"));
++      return;
++    }
++    if (!date) return;
++    setSaving(true);
++    const { error: saveError } = await addTransfer({
++      from_account_id: fromId,
++      to_account_id: toId,
++      amount: sentValue,
++      to_amount: receivedValue,
++      date,
++      note: note.trim(),
++    });
++    setSaving(false);
++    if (saveError) {
++      setError(saveError.message || t("transferErrorGeneric"));
++      return;
++    }
++    setAmount("");
++    setReceived("");
++    setNote("");
++  }
++
++  async function handleDelete(id) {
++    if (window.confirm(t("transferDeleteConfirm"))) {
++      await deleteTransfer(id);
++    }
++  }
++
++  if (accounts.length < 2) {
++    return (
++      <div className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6">
++        <div className="flex items-baseline justify-between mb-3">
++          <h2 className="font-serif text-lg font-semibold tracking-tight">{t("transferTitle")}</h2>
++          <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft)">
++            {t("transferSubtitle")}
++          </span>
++        </div>
++        <p className="text-sm text-(--color-ink-soft)">{t("transferNeedTwoAccounts")}</p>
++      </div>
++    );
++  }
++
++  const visibleTransfers = showAll ? transfers : transfers.slice(0, HISTORY_LIMIT);
++  const selectClass =
++    "w-full border-b border-(--color-ink) bg-transparent py-1.5 text-sm outline-none";
++  const labelClass = "block text-xs uppercase tracking-wide text-(--color-ink-soft) mb-1.5";
++
++  return (
++    <div className="space-y-6">
++      <form onSubmit={handleSubmit} className="border border-(--color-rule) bg-(--color-paper) p-5 sm:p-6">
++        <div className="flex items-baseline justify-between mb-5">
++          <h2 className="font-serif text-lg font-semibold tracking-tight">{t("transferTitle")}</h2>
++          <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft)">
++            {t("transferSubtitle")}
++          </span>
++        </div>
++
++        <div className="flex items-end gap-3">
++          <div className="flex-1 min-w-0">
++            <label htmlFor="transfer-from" className={labelClass}>
++              {t("transferFrom")}
++            </label>
++            <select
++              id="transfer-from"
++              value={fromId}
++              onChange={(e) => {
++                setFromSel(e.target.value);
++                setReceived("");
++              }}
++              className={selectClass}
++            >
++              {accounts.map((a) => (
++                <option key={a.id} value={a.id}>
++                  {a.name} ({a.currency || "MAD"})
++                </option>
++              ))}
++            </select>
++          </div>
++
++          <button
++            type="button"
++            onClick={swap}
++            aria-label={t("transferSwapAria")}
++            className="pb-1.5 text-lg leading-none text-(--color-ink-soft) hover:text-(--color-brass-dark) transition-colors"
++          >
++            ⇄
++          </button>
++
++          <div className="flex-1 min-w-0">
++            <label htmlFor="transfer-to" className={labelClass}>
++              {t("transferTo")}
++            </label>
++            <select
++              id="transfer-to"
++              value={toId}
++              onChange={(e) => {
++                setToSel(e.target.value);
++                setReceived("");
++              }}
++              className={selectClass}
++            >
++              {accounts
++                .filter((a) => a.id !== fromId)
++                .map((a) => (
++                  <option key={a.id} value={a.id}>
++                    {a.name} ({a.currency || "MAD"})
++                  </option>
++                ))}
++            </select>
++          </div>
++        </div>
++
++        <div className="mt-4 flex flex-col sm:flex-row gap-4">
++          <div className="flex-1">
++            <label htmlFor="transfer-amount" className={labelClass}>
++              {t("transferAmount")}
++            </label>
++            <div className="flex items-center border-b border-(--color-ink)">
++              <input
++                id="transfer-amount"
++                type="number"
++                inputMode="decimal"
++                step="0.01"
++                min="0"
++                placeholder="0.00"
++                value={amount}
++                onChange={(e) => setAmount(e.target.value)}
++                className="w-full bg-transparent py-1.5 font-mono text-sm tabular outline-none placeholder:text-(--color-rule)"
++              />
++              <span className="font-mono text-xs text-(--color-ink-soft) ps-1">{fromCurrency}</span>
++            </div>
++          </div>
++
++          {crossCurrency && (
++            <div className="flex-1">
++              <label htmlFor="transfer-received" className={labelClass}>
++                {t("transferReceived")}
++              </label>
++              <div className="flex items-center border-b border-(--color-ink)">
++                <input
++                  id="transfer-received"
++                  type="number"
++                  inputMode="decimal"
++                  step="0.01"
++                  min="0"
++                  placeholder="0.00"
++                  value={received}
++                  onChange={(e) => setReceived(e.target.value)}
++                  className="w-full bg-transparent py-1.5 font-mono text-sm tabular outline-none placeholder:text-(--color-rule)"
++                />
++                <span className="font-mono text-xs text-(--color-ink-soft) ps-1">{toCurrency}</span>
++              </div>
++            </div>
++          )}
++
++          <div className="flex-1">
++            <label htmlFor="transfer-date" className={labelClass}>
++              {t("transferDate")}
++            </label>
++            <input
++              id="transfer-date"
++              type="date"
++              value={date}
++              onChange={(e) => setDate(e.target.value)}
++              className="w-full border-b border-(--color-ink) bg-transparent py-1.5 text-sm outline-none"
++            />
++          </div>
++        </div>
++
++        {crossCurrency && (
++          <p className="mt-2 text-xs text-(--color-ink-soft)">{t("transferCrossCurrencyHint")}</p>
++        )}
++
++        <div className="mt-4">
++          <label htmlFor="transfer-note" className={labelClass}>
++            {t("transferNote")}
++          </label>
++          <input
++            id="transfer-note"
++            type="text"
++            value={note}
++            onChange={(e) => setNote(e.target.value)}
++            className="w-full border-b border-(--color-ink) bg-transparent py-1.5 text-sm outline-none"
++          />
++        </div>
++
++        {showPreview && (
++          <dl className="mt-5 space-y-1.5 border border-(--color-rule) px-3 py-2.5">
++            <dt className="font-mono text-[11px] uppercase tracking-widest text-(--color-ink-soft)">
++              {t("transferAfter")}
++            </dt>
++            {[
++              { account: from, value: fromAfter },
++              { account: to, value: toAfter },
++            ].map(({ account, value }) => (
++              <dd key={account.id} className="flex items-baseline justify-between text-sm">
++                <span className="text-(--color-ink-soft)">{account.name}</span>
++                <span
++                  className={`font-mono tabular ${value < 0 ? "text-(--color-debit)" : ""}`}
++                >
++                  {value < 0 ? "−" : ""}
++                  {formatAmount(value, account.currency)}
++                </span>
++              </dd>
++            ))}
++            {fromAfter < 0 && (
++              <p className="pt-1 text-xs text-(--color-debit)">
++                {t("transferLowBalance", { name: from.name })}
++              </p>
++            )}
++          </dl>
++        )}
++
++        <button
++          type="submit"
++          disabled={saving}
++          className="mt-5 w-full bg-(--color-ink) text-(--color-paper) py-3 font-mono text-sm uppercase tracking-widest hover:bg-(--color-brass-dark) transition-colors disabled:opacity-60"
++        >
++          {t("transferSubmit")}
++        </button>
++        {error && <p className="mt-3 text-sm text-(--color-debit) font-medium">{error}</p>}
++      </form>
++
++      <div className="border border-(--color-rule) bg-(--color-paper)">
++        <div className="flex items-baseline justify-between px-4 sm:px-5 py-3 border-b border-(--color-rule)">
++          <h3 className="font-serif font-semibold tracking-tight">{t("transferHistory")}</h3>
++        </div>
++        {transfers.length === 0 ? (
++          <div className="p-8 text-center">
++            <p className="text-sm text-(--color-ink-soft)">{t("transferNone")}</p>
++          </div>
++        ) : (
++          <ul>
++            {visibleTransfers.map((tr, index) => {
++              const src = byId[tr.from_account_id];
++              const dst = byId[tr.to_account_id];
++              const sentCurrency = src?.currency || "MAD";
++              const gotCurrency = dst?.currency || "MAD";
++              const cross = src && dst && sentCurrency !== gotCurrency;
++              return (
++                <li
++                  key={tr.id}
++                  className="stagger-row flex items-center justify-between gap-3 border-b border-(--color-rule) last:border-b-0 px-4 sm:px-5 py-3"
++                  style={{ "--i": Math.min(index, 14) }}
++                >
++                  <div className="min-w-0">
++                    <p className="text-sm truncate">
++                      {src ? src.name : t("transferDeletedAccount")}
++                      <span aria-hidden="true" className="mx-1.5 text-(--color-ink-soft)">→</span>
++                      {dst ? dst.name : t("transferDeletedAccount")}
++                    </p>
++                    <p className="mt-0.5 font-mono text-xs text-(--color-ink-soft) truncate">
++                      {formatDate(tr.date, locale)}
++                      {tr.note ? ` · ${tr.note}` : ""}
++                    </p>
++                  </div>
++                  <div className="flex items-center gap-3 shrink-0">
++                    <div className="text-end font-mono tabular text-sm">
++                      <div>{formatAmount(tr.amount, sentCurrency)}</div>
++                      {cross && (
++                        <div className="text-xs text-(--color-ink-soft)">
++                          → {formatAmount(tr.to_amount, gotCurrency)}
++                        </div>
++                      )}
++                    </div>
++                    <button
++                      onClick={() => handleDelete(tr.id)}
++                      aria-label={t("deleteTransferAria")}
++                      className="text-(--color-ink-soft) hover:text-(--color-debit) text-xs"
++                    >
++                      ✕
++                    </button>
++                  </div>
++                </li>
++              );
++            })}
++          </ul>
++        )}
++        {transfers.length > HISTORY_LIMIT && (
++          <button
++            onClick={() => setShowAll((v) => !v)}
++            className="w-full border-t border-(--color-rule) py-2.5 font-mono text-xs uppercase tracking-widest text-(--color-ink-soft) hover:text-(--color-brass-dark) transition-colors"
++          >
++            {showAll ? t("transferShowLess") : t("transferShowAll", { count: transfers.length })}
++          </button>
++        )}
++      </div>
++    </div>
++  );
++}
+diff --git a/src/hooks/useTransfers.js b/src/hooks/useTransfers.js
+new file mode 100644
+index 0000000..cfcaed1
+--- /dev/null
++++ b/src/hooks/useTransfers.js
+@@ -0,0 +1,59 @@
++import { useEffect, useState, useCallback } from "react";
++import { supabase } from "../lib/supabaseClient";
++
++export function useTransfers(userId) {
++  const [transfers, setTransfers] = useState([]);
++  const [loading, setLoading] = useState(true);
++
++  useEffect(() => {
++    if (!userId) {
++      setTransfers([]);
++      setLoading(false);
++      return;
++    }
++    let cancelled = false;
++    setLoading(true);
++    supabase
++      .from("transfers")
++      .select("*")
++      .eq("user_id", userId)
++      .order("date", { ascending: false })
++      .order("created_at", { ascending: false })
++      .then(({ data, error }) => {
++        if (cancelled) return;
++        if (!error && data) setTransfers(data);
++        setLoading(false);
++      });
++    return () => {
++      cancelled = true;
++    };
++  }, [userId]);
++
++  // One insert = one row = both sides of the move, so a transfer can
++  // never be saved half-way. Local state only updates once the database
++  // confirms, so the balances on screen always match what's stored.
++  const addTransfer = useCallback(
++    async (entry) => {
++      const { data, error } = await supabase
++        .from("transfers")
++        .insert({ ...entry, user_id: userId })
++        .select()
++        .single();
++      if (!error && data) {
++        setTransfers((prev) => [data, ...prev]);
++      }
++      return { data, error };
++    },
++    [userId]
++  );
++
++  const deleteTransfer = useCallback(async (id) => {
++    const { error } = await supabase.from("transfers").delete().eq("id", id);
++    if (!error) {
++      setTransfers((prev) => prev.filter((t) => t.id !== id));
++    }
++    return { error };
++  }, []);
++
++  return { transfers, loading, addTransfer, deleteTransfer };
++}
+diff --git a/src/lib/balances.js b/src/lib/balances.js
+new file mode 100644
+index 0000000..68a1f5b
+--- /dev/null
++++ b/src/lib/balances.js
+@@ -0,0 +1,55 @@
++/**
++ * Shared balance maths for account-to-account transfers.
++ *
++ * A transfer debits `amount` from its source account and credits
++ * `to_amount` (falling back to `amount`) to its destination. Because
++ * each side is applied in its own account's currency, per-currency
++ * totals stay correct for cross-currency transfers, and for
++ * same-currency transfers the net effect on the total is exactly zero.
++ *
++ * Money is summed in JS floats, so every result is rounded to cents to
++ * stop errors like 0.1 + 0.2 from drifting into the displayed balance.
++ */
++
++export function round2(n) {
++  return Math.round((n + Number.EPSILON) * 100) / 100;
++}
++
++/**
++ * Map of accountId -> net effect of all transfers on that account.
++ * Transfers whose account was deleted (null side) are skipped for that
++ * side; the surviving side keeps its effect.
++ */
++export function transferDeltas(accounts, transfers = []) {
++  const deltas = new Map(accounts.map((a) => [a.id, 0]));
++  for (const tr of transfers) {
++    const sent = Number(tr.amount) || 0;
++    const received = Number(tr.to_amount ?? tr.amount) || 0;
++    if (tr.from_account_id && deltas.has(tr.from_account_id)) {
++      deltas.set(tr.from_account_id, deltas.get(tr.from_account_id) - sent);
++    }
++    if (tr.to_account_id && deltas.has(tr.to_account_id)) {
++      deltas.set(tr.to_account_id, deltas.get(tr.to_account_id) + received);
++    }
++  }
++  for (const [id, value] of deltas) deltas.set(id, round2(value));
++  return deltas;
++}
++
++/**
++ * Map of accountId -> current balance:
++ * opening balance + income - expenses + transfers in - transfers out.
++ */
++export function accountBalances(accounts, transactions = [], transfers = []) {
++  const balances = new Map(accounts.map((a) => [a.id, a.opening_balance || 0]));
++  for (const tx of transactions) {
++    if (!tx.account_id || !balances.has(tx.account_id)) continue;
++    const signed = tx.type === "income" ? tx.amount : -tx.amount;
++    balances.set(tx.account_id, balances.get(tx.account_id) + signed);
++  }
++  for (const [id, delta] of transferDeltas(accounts, transfers)) {
++    balances.set(id, balances.get(id) + delta);
++  }
++  for (const [id, value] of balances) balances.set(id, round2(value));
++  return balances;
++}
+diff --git a/src/lib/chatContext.js b/src/lib/chatContext.js
+index 1d429f5..4003f25 100644
+--- a/src/lib/chatContext.js
++++ b/src/lib/chatContext.js
+@@ -1,4 +1,5 @@
+ import { todayISO } from "./format";
++import { transferDeltas } from "./balances";
+ 
+ function round2(n) {
+   return Math.round(n * 100) / 100;
+@@ -42,7 +43,7 @@ function monthSummary(transactions, key, catLabel) {
+  * recurring bills. Deliberately excludes the raw transaction list
+  * (keeps the payload small and avoids sending unnecessary detail).
+  */
+-export function buildChatContext({ transactions, budgets, goals, loans, accounts, rules, catLabel }) {
++export function buildChatContext({ transactions, budgets, goals, loans, accounts, transfers = [], rules, catLabel }) {
+   const thisMonthKey = monthKeyOffset(0);
+   const lastMonthKey = monthKeyOffset(-1);
+   const thisMonth = monthSummary(transactions, thisMonthKey, catLabel);
+@@ -67,6 +68,14 @@ export function buildChatContext({ transactions, budgets, goals, loans, accounts
+       totalsByCurrency.MAD = (totalsByCurrency.MAD || 0) + signed;
+     }
+   }
++  // Transfers move money between accounts (not income or spending), so
++  // they only change per-account balances, each side in its own currency.
++  for (const [id, delta] of transferDeltas(accounts, transfers)) {
++    if (delta === 0) continue;
++    accountBalances.set(id, accountBalances.get(id) + delta);
++    const curr = accountCurrency.get(id) || "MAD";
++    totalsByCurrency[curr] = (totalsByCurrency[curr] || 0) + delta;
++  }
+   const currencyKeys = Object.keys(totalsByCurrency);
+   // A single netWorth figure only makes sense if everything's in one
+   // currency (the common case) — summing different currencies together
+diff --git a/src/lib/i18n/translations.js b/src/lib/i18n/translations.js
+index b1d44a7..3d12d18 100644
+--- a/src/lib/i18n/translations.js
++++ b/src/lib/i18n/translations.js
+@@ -323,6 +323,31 @@ export const TRANSLATIONS = {
+     accountErrorGeneric: "Couldn't add that account. Please try again.",
+     noAccountsYet: "No accounts yet.",
+     defaultAccountName: "Main",
++    // Transfers
++    transferTitle: "Transfer money",
++    transferSubtitle: "Between your accounts",
++    transferFrom: "From",
++    transferTo: "To",
++    transferAmount: "Amount",
++    transferReceived: "Amount received",
++    transferDate: "Date",
++    transferNote: "Note (optional)",
++    transferSubmit: "Transfer",
++    transferSwapAria: "Swap accounts",
++    transferAfter: "Balances after transfer",
++    transferLowBalance: "{name} will go below zero after this transfer.",
++    transferCrossCurrencyHint: "These accounts use different currencies — enter the amount the destination account actually receives.",
++    transferNeedTwoAccounts: "Add at least two accounts to move money between them.",
++    transferSameAccount: "Choose two different accounts.",
++    transferInvalidAmount: "Enter an amount greater than zero.",
++    transferErrorGeneric: "Couldn't save the transfer. Please try again.",
++    transferHistory: "Transfer history",
++    transferNone: "No transfers yet.",
++    transferDeletedAccount: "Deleted account",
++    transferDeleteConfirm: "Delete this transfer? The money will go back to the account it came from.",
++    deleteTransferAria: "Delete transfer",
++    transferShowAll: "Show all {count}",
++    transferShowLess: "Show less",
+ 
+     // Savings goals
+     goalsTitle: "Savings goals",
+@@ -810,6 +835,31 @@ export const TRANSLATIONS = {
+     accountErrorGeneric: "Impossible d'ajouter ce compte. Veuillez réessayer.",
+     noAccountsYet: "Aucun compte pour l'instant.",
+     defaultAccountName: "Principal",
++    // Transfers
++    transferTitle: "Transférer de l'argent",
++    transferSubtitle: "Entre vos comptes",
++    transferFrom: "De",
++    transferTo: "Vers",
++    transferAmount: "Montant",
++    transferReceived: "Montant reçu",
++    transferDate: "Date",
++    transferNote: "Note (facultatif)",
++    transferSubmit: "Transférer",
++    transferSwapAria: "Inverser les comptes",
++    transferAfter: "Soldes après le transfert",
++    transferLowBalance: "{name} passera en dessous de zéro après ce transfert.",
++    transferCrossCurrencyHint: "Ces comptes utilisent des devises différentes — saisissez le montant réellement reçu par le compte de destination.",
++    transferNeedTwoAccounts: "Ajoutez au moins deux comptes pour transférer de l'argent entre eux.",
++    transferSameAccount: "Choisissez deux comptes différents.",
++    transferInvalidAmount: "Saisissez un montant supérieur à zéro.",
++    transferErrorGeneric: "Impossible d'enregistrer le transfert. Veuillez réessayer.",
++    transferHistory: "Historique des transferts",
++    transferNone: "Aucun transfert pour l'instant.",
++    transferDeletedAccount: "Compte supprimé",
++    transferDeleteConfirm: "Supprimer ce transfert ? L'argent retournera sur le compte d'origine.",
++    deleteTransferAria: "Supprimer le transfert",
++    transferShowAll: "Tout afficher ({count})",
++    transferShowLess: "Afficher moins",
+ 
+     // Objectifs d'épargne
+     goalsTitle: "Objectifs d'épargne",
+@@ -1288,6 +1338,31 @@ export const TRANSLATIONS = {
+     accountErrorGeneric: "تعذّرت إضافة هذا الحساب. حاول مرة أخرى.",
+     noAccountsYet: "لا توجد حسابات بعد.",
+     defaultAccountName: "الرئيسي",
++    // Transfers
++    transferTitle: "تحويل الأموال",
++    transferSubtitle: "بين حساباتك",
++    transferFrom: "من",
++    transferTo: "إلى",
++    transferAmount: "المبلغ",
++    transferReceived: "المبلغ المستلم",
++    transferDate: "التاريخ",
++    transferNote: "ملاحظة (اختياري)",
++    transferSubmit: "تحويل",
++    transferSwapAria: "عكس الحسابين",
++    transferAfter: "الأرصدة بعد التحويل",
++    transferLowBalance: "سيصبح رصيد {name} أقل من صفر بعد هذا التحويل.",
++    transferCrossCurrencyHint: "هذان الحسابان بعملتين مختلفتين — أدخل المبلغ الذي يستلمه الحساب الوجهة فعلياً.",
++    transferNeedTwoAccounts: "أضف حسابين على الأقل لتحويل الأموال بينهما.",
++    transferSameAccount: "اختر حسابين مختلفين.",
++    transferInvalidAmount: "أدخل مبلغاً أكبر من صفر.",
++    transferErrorGeneric: "تعذّر حفظ التحويل. يُرجى المحاولة مرة أخرى.",
++    transferHistory: "سجل التحويلات",
++    transferNone: "لا توجد تحويلات بعد.",
++    transferDeletedAccount: "حساب محذوف",
++    transferDeleteConfirm: "حذف هذا التحويل؟ سيعود المال إلى الحساب الأصلي.",
++    deleteTransferAria: "حذف التحويل",
++    transferShowAll: "عرض الكل ({count})",
++    transferShowLess: "عرض أقل",
+ 
+     // أهداف الادخار
+     goalsTitle: "أهداف الادخار",
+diff --git a/supabase/migration-014-transfers.sql b/supabase/migration-014-transfers.sql
+new file mode 100644
+index 0000000..b4859c4
+--- /dev/null
++++ b/supabase/migration-014-transfers.sql
+@@ -0,0 +1,67 @@
++-- Run this once in your Supabase project's SQL Editor.
++-- Adds account-to-account transfers.
++--
++-- A transfer is ONE row that moves money out of one account and into
++-- another, so it can never be half-applied (money leaving without
++-- arriving). It deliberately lives outside the `transactions` table:
++-- moving your own money isn't income or spending, so it must not
++-- inflate your income/expense totals, budgets, or trends.
++--
++--   balance(account) = opening_balance
++--                    + income - expenses        (transactions)
++--                    - transfers sent (amount)
++--                    + transfers received (to_amount)
++--
++-- `amount` is what leaves the source account (in the source's
++-- currency). `to_amount` is what arrives in the destination (in the
++-- destination's currency) -- identical to `amount` when both accounts
++-- share a currency, different when you move e.g. MAD -> EUR.
++--
++-- Deleting an account keeps the transfers it took part in (the other
++-- side keeps its balance); the deleted side simply becomes null.
++
++create table if not exists transfers (
++  id uuid primary key default gen_random_uuid(),
++  user_id uuid not null references auth.users(id) on delete cascade,
++  from_account_id uuid references accounts(id) on delete set null,
++  to_account_id uuid references accounts(id) on delete set null,
++  amount numeric not null check (amount > 0),
++  to_amount numeric not null check (to_amount > 0),
++  date date not null,
++  note text default '',
++  created_at timestamptz not null default now(),
++  check (
++    from_account_id is null
++    or to_account_id is null
++    or from_account_id <> to_account_id
++  )
++);
++
++alter table transfers enable row level security;
++
++-- Besides "it's your row", both accounts must also be yours, so nobody
++-- can point a transfer at another user's account.
++create policy "Users manage their own transfers"
++  on transfers for all
++  using (auth.uid() = user_id)
++  with check (
++    auth.uid() = user_id
++    and (
++      from_account_id is null
++      or exists (
++        select 1 from accounts a
++        where a.id = from_account_id and a.user_id = auth.uid()
++      )
++    )
++    and (
++      to_account_id is null
++      or exists (
++        select 1 from accounts a
++        where a.id = to_account_id and a.user_id = auth.uid()
++      )
++    )
++  );
++
++create index if not exists transfers_user_date_idx on transfers (user_id, date desc);
++create index if not exists transfers_from_idx on transfers (from_account_id);
++create index if not exists transfers_to_idx on transfers (to_account_id);
+diff --git a/supabase/schema.sql b/supabase/schema.sql
+index 5bb3a58..efa3a34 100644
+--- a/supabase/schema.sql
++++ b/supabase/schema.sql
+@@ -84,6 +84,27 @@ create table if not exists loans (
+   created_at timestamptz not null default now()
+ );
+ 
++-- Account-to-account transfers: one row moves `amount` out of the source
++-- account and `to_amount` into the destination (they differ only when the
++-- two accounts use different currencies). Kept separate from transactions
++-- so moving your own money never counts as income or spending.
++create table if not exists transfers (
++  id uuid primary key default gen_random_uuid(),
++  user_id uuid not null references auth.users(id) on delete cascade,
++  from_account_id uuid references accounts(id) on delete set null,
++  to_account_id uuid references accounts(id) on delete set null,
++  amount numeric not null check (amount > 0),
++  to_amount numeric not null check (to_amount > 0),
++  date date not null,
++  note text default '',
++  created_at timestamptz not null default now(),
++  check (
++    from_account_id is null
++    or to_account_id is null
++    or from_account_id <> to_account_id
++  )
++);
++
+ -- Push notification subscriptions (one row per device) and a log used
+ -- only to avoid re-sending the same alert every time the daily check
+ -- runs.
+@@ -111,6 +132,7 @@ alter table recurring_rules enable row level security;
+ alter table savings_goals enable row level security;
+ alter table categories enable row level security;
+ alter table loans enable row level security;
++alter table transfers enable row level security;
+ alter table push_subscriptions enable row level security;
+ alter table push_notification_log enable row level security;
+ 
+@@ -149,6 +171,21 @@ create policy "Users manage their own loans"
+   using (auth.uid() = user_id)
+   with check (auth.uid() = user_id);
+ 
++create policy "Users manage their own transfers"
++  on transfers for all
++  using (auth.uid() = user_id)
++  with check (
++    auth.uid() = user_id
++    and (
++      from_account_id is null
++      or exists (select 1 from accounts a where a.id = from_account_id and a.user_id = auth.uid())
++    )
++    and (
++      to_account_id is null
++      or exists (select 1 from accounts a where a.id = to_account_id and a.user_id = auth.uid())
++    )
++  );
++
+ create policy "Users manage their own push subscriptions"
+   on push_subscriptions for all
+   using (auth.uid() = user_id)
+@@ -159,6 +196,9 @@ create policy "Users manage their own push subscriptions"
+ 
+ create index if not exists transactions_user_date_idx on transactions (user_id, date desc);
+ create index if not exists transactions_account_idx on transactions (account_id);
++create index if not exists transfers_user_date_idx on transfers (user_id, date desc);
++create index if not exists transfers_from_idx on transfers (from_account_id);
++create index if not exists transfers_to_idx on transfers (to_account_id);
+ 
+ -- Profile pictures. First/last name and the avatar URL itself live in
+ -- Supabase Auth's built-in user metadata, not a table.
+-- 
+2.43.0
+
