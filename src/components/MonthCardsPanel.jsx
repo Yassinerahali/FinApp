@@ -48,12 +48,12 @@ function Overview({ plans }) {
                 aria-label={`${name} ${year}: ${t("mcLegendSalary")} ${formatAmount(plan.salary)}, ${t("mcExpenses")} ${formatAmount(totals.total)}`}
               >
                 <div
-                  className="w-5 border-2 border-b-0 border-(--color-ink-soft) transition-all duration-500"
-                  style={{ height: `${Math.max(2, (plan.salary / max) * 100)}%` }}
+                  className="w-5 border-2 border-b-0 border-(--color-ink-soft)"
+                  style={{ height: `${Math.max(2, (plan.salary / max) * 100)}%`, transition: "height 500ms ease-out" }}
                 />
                 <div
-                  className={`w-5 transition-all duration-500 ${over ? "bg-(--color-debit)" : "bg-(--color-credit)"}`}
-                  style={{ height: `${Math.max(2, (totals.total / max) * 100)}%` }}
+                  className={`w-5 ${over ? "bg-(--color-debit)" : "bg-(--color-credit)"}`}
+                  style={{ height: `${Math.max(2, (totals.total / max) * 100)}%`, transition: "height 500ms ease-out" }}
                 />
               </div>
               <span

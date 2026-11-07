@@ -48,7 +48,9 @@ function AmountInput({ id, value, onChange, label, readOnly = false }) {
 function Chevron({ open }) {
   return (
     <span aria-hidden="true" className="inline-block rtl:-scale-x-100 text-sm leading-none opacity-70">
-      {open ? "▾" : "▸"}
+      <span className={`inline-block ${open ? "rotate-90" : ""}`} style={{ transition: "rotate 300ms ease-out" }}>
+        ▸
+      </span>
     </span>
   );
 }
@@ -333,13 +335,18 @@ export default function MonthCard({ plan, phase, defaultOpen = false, onChange, 
     setOpenExpenseId(created.id);
   }
 
+  const toggle = () => setOpen((o) => !o);
+  // While collapsed, the whole summary acts as one big "open" target.
+  const openIfClosed = open ? undefined : toggle;
+  const VALUE = "flex items-center border border-transparent px-2 py-1 min-h-[2.1rem]";
+
   return (
     <article className={`bg-(--color-paper) ${frame} ${phase === "past" ? "opacity-95" : ""}`}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-expanded={open}
-        aria-controls={open ? `${baseId}-body` : undefined}
+        aria-controls={`${baseId}-body`}
         className="block w-full text-start"
       >
         <span className={`flex items-center justify-between gap-3 px-4 py-3 ${headBg}`}>
@@ -354,149 +361,156 @@ export default function MonthCard({ plan, phase, defaultOpen = false, onChange, 
             <Chevron open={open} />
           </span>
         </span>
-        {!open && (
-          <>
-            <span className="grid grid-cols-3 border-y border-(--color-rule)">
-              <span className="block px-4 py-3 min-w-0">
-                <span className={`block ${LABEL}`}>{t("mcExpenses")}</span>
-                <span className="block font-mono text-sm tabular truncate">{formatAmount(totals.total)}</span>
-              </span>
-              <span className="block px-4 py-3 min-w-0 border-s border-(--color-rule)">
-                <span className={`block ${LABEL}`}>{t("mcSalary")}</span>
-                <span className="block font-mono text-sm tabular truncate">{formatAmount(plan.salary)}</span>
-              </span>
-              <span className="block px-4 py-3 min-w-0 border-s border-(--color-rule)">
-                <span className={`block ${LABEL}`}>{t("mcLeftOver")}</span>
-                <span className={`block font-mono text-sm tabular truncate ${leftClass}`}>
-                  {formatAmount(totals.left)}
-                </span>
-              </span>
-            </span>
-            <span className={`block mx-4 my-3 px-3 py-2 text-sm font-semibold ${statusClass}`}>{statusText}</span>
-          </>
-        )}
       </button>
 
-      {open && (
-        <div id={`${baseId}-body`}>
-          <div className="grid grid-cols-3 border-y border-(--color-rule)">
-            <div className="px-4 py-3 min-w-0">
-              <span className={`block ${LABEL}`}>{t("mcExpenses")}</span>
-              <span className="block font-mono text-sm tabular truncate">{formatAmount(totals.total)}</span>
+      {/* Stays on screen open or closed, so only the details below slide. */}
+      <div
+        onClick={openIfClosed}
+        className={`grid grid-cols-3 border-y border-(--color-rule) ${open ? "" : "cursor-pointer"}`}
+      >
+        <div className="px-2 py-2 min-w-0">
+          <span className={`block px-2 ${LABEL}`}>{t("mcExpenses")}</span>
+          <span className={`${VALUE} font-mono text-sm tabular truncate`}>{formatAmount(totals.total)}</span>
+        </div>
+        <div className="px-2 py-2 min-w-0 border-s border-(--color-rule)">
+          <label htmlFor={`${baseId}-salary`} className={`block px-2 ${LABEL}`}>
+            {t("mcSalary")}
+          </label>
+          {open ? (
+            <div className={BOX}>
+              <AmountInput id={`${baseId}-salary`} value={plan.salary} onChange={(n) => set({ salary: n })} />
+              <span className="font-mono text-[10px] text-(--color-ink-soft)">MAD</span>
             </div>
-            <div className="px-4 py-3 min-w-0 border-s border-(--color-rule)">
-              <label htmlFor={`${baseId}-salary`} className={`block ${LABEL}`}>
-                {t("mcSalary")}
-              </label>
-              <div className={BOX}>
-                <AmountInput id={`${baseId}-salary`} value={plan.salary} onChange={(n) => set({ salary: n })} />
-                <span className="font-mono text-[10px] text-(--color-ink-soft)">MAD</span>
-              </div>
-            </div>
-            <div className="px-4 py-3 min-w-0 border-s border-(--color-rule)">
-              <span className={`block ${LABEL}`}>{t("mcLeftOver")}</span>
-              <span className={`block font-mono text-sm tabular truncate ${leftClass}`}>
-                {formatAmount(totals.left)}
-              </span>
-            </div>
-          </div>
+          ) : (
+            <span className={`${VALUE} font-mono text-sm tabular truncate`}>{formatAmount(plan.salary)}</span>
+          )}
+        </div>
+        <div className="px-2 py-2 min-w-0 border-s border-(--color-rule)">
+          <span className={`block px-2 ${LABEL}`}>{t("mcLeftOver")}</span>
+          <span className={`${VALUE} font-mono text-sm tabular truncate ${leftClass}`}>
+            {formatAmount(totals.left)}
+          </span>
+        </div>
+      </div>
 
-          <p className={`mx-4 my-3 px-3 py-2 text-sm font-semibold ${statusClass}`}>{statusText}</p>
+      <p
+        onClick={openIfClosed}
+        className={`mx-4 my-3 px-3 py-2 text-sm font-semibold ${statusClass} ${open ? "" : "cursor-pointer"}`}
+      >
+        {statusText}
+      </p>
 
-          <div className="px-4 pb-3 space-y-1.5">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 text-xs text-(--color-ink-soft)">
-              <span>{t("mcPaidOf", { paid: totals.paidCount, count: totals.count })}</span>
-              <span className="font-mono tabular">{t("mcStillToPay", { amount: formatAmount(totals.remaining) })}</span>
-            </div>
-            <div className="h-1.5 bg-(--color-paper-bar) overflow-hidden">
-              <div
-                className="h-full bg-(--color-credit) transition-all duration-500 ease-out"
-                style={{ width: `${totals.total > 0 ? Math.min(100, (totals.paid / totals.total) * 100) : 0}%` }}
-              />
-            </div>
-          </div>
-
-          <ul className="px-2.5">
-            {plan.expenses.map((e) => (
-              <ExpenseItem
-                key={e.id}
-                expense={e}
-                baseId={`${baseId}-${e.id}`}
-                isOpen={openExpenseId === e.id}
-                onOpen={() => setOpenExpenseId(e.id)}
-                onToggleOpen={() => setOpenExpenseId((cur) => (cur === e.id ? null : e.id))}
-                patch={patchExpense}
-              />
-            ))}
-          </ul>
-
-          <button
-            type="button"
-            onClick={addExpense}
-            className="mx-4 mt-2 mb-3 w-[calc(100%-2rem)] border border-dashed border-(--color-rule) py-2 text-sm text-(--color-ink-soft) hover:border-(--color-ink) hover:text-(--color-ink)"
+      {/* Height animates 0fr -> 1fr; inert keeps hidden fields out of reach of keyboard and screen readers. */}
+      <div
+        id={`${baseId}-body`}
+        inert={!open}
+        aria-hidden={!open}
+        className={`grid ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+        style={{ transition: "grid-template-rows 300ms ease-out" }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className={open ? "opacity-100" : "opacity-0"}
+            style={{ transition: "opacity 300ms ease-out" }}
           >
-            + {t("mcAddExpense")}
-          </button>
-
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-(--color-rule) px-4 py-3">
-            <div className="col-span-2 space-y-1">
-              <label htmlFor={`${baseId}-savings`} className={`block ${LABEL}`}>
-                {t("mcSavings")}
-              </label>
-              <div className={BOX}>
-                <AmountInput id={`${baseId}-savings`} value={plan.savings} onChange={(n) => set({ savings: n })} />
-                <span className="font-mono text-[10px] text-(--color-ink-soft)">MAD</span>
+            <div className="px-4 pb-3 space-y-1.5">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 text-xs text-(--color-ink-soft)">
+                <span>{t("mcPaidOf", { paid: totals.paidCount, count: totals.count })}</span>
+                <span className="font-mono tabular">{t("mcStillToPay", { amount: formatAmount(totals.remaining) })}</span>
               </div>
-              <p className="text-xs text-(--color-ink-soft)">{t("mcSavingsHint")}</p>
-            </div>
-            <div className="space-y-1 min-w-0">
-              <label htmlFor={`${baseId}-objective`} className={`block ${LABEL}`}>
-                {t("mcSavingsObjective")}
-              </label>
-              <div className={BOX}>
-                <AmountInput
-                  id={`${baseId}-objective`}
-                  value={plan.objective}
-                  onChange={(n) => set({ objective: n })}
+              <div className="h-1.5 bg-(--color-paper-bar) overflow-hidden">
+                <div
+                  className="h-full bg-(--color-credit)"
+                  style={{
+                    width: `${totals.total > 0 ? Math.min(100, (totals.paid / totals.total) * 100) : 0}%`,
+                    transition: "width 500ms ease-out",
+                  }}
                 />
-                <span className="font-mono text-[10px] text-(--color-ink-soft)">MAD</span>
               </div>
             </div>
-            <div className="space-y-1 min-w-0">
-              <input
-                id={`${baseId}-debts-label`}
-                type="text"
-                value={plan.debtsLabel}
-                onChange={(ev) => set({ debtsLabel: ev.target.value })}
-                placeholder={t("mcMasterDebts")}
-                aria-label={t("mcDebtsTitleAria")}
-                className={`block w-full min-w-0 bg-transparent outline-none border-b border-dashed border-(--color-rule) focus:border-(--color-ink) placeholder:text-(--color-ink-soft) ${LABEL}`}
-              />
-              <div className={BOX}>
-                <AmountInput
-                  id={`${baseId}-debts`}
-                  value={plan.debts}
-                  onChange={(n) => set({ debts: n })}
-                  label={plan.debtsLabel || t("mcMasterDebts")}
-                />
-                <span className="font-mono text-[10px] text-(--color-ink-soft)">MAD</span>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex justify-end px-4 pb-3">
+            <ul className="px-2.5">
+              {plan.expenses.map((e) => (
+                <ExpenseItem
+                  key={e.id}
+                  expense={e}
+                  baseId={`${baseId}-${e.id}`}
+                  isOpen={openExpenseId === e.id}
+                  onOpen={() => setOpenExpenseId(e.id)}
+                  onToggleOpen={() => setOpenExpenseId((cur) => (cur === e.id ? null : e.id))}
+                  patch={patchExpense}
+                />
+              ))}
+            </ul>
+
             <button
               type="button"
-              onClick={() => (confirmingDelete ? onDelete() : setConfirmingDelete(true))}
-              className={`text-xs underline ${
-                confirmingDelete ? "text-(--color-debit) font-semibold" : "text-(--color-ink-soft) hover:text-(--color-ink)"
-              }`}
+              onClick={addExpense}
+              className="mx-4 mt-2 mb-3 w-[calc(100%-2rem)] border border-dashed border-(--color-rule) py-2 text-sm text-(--color-ink-soft) hover:border-(--color-ink) hover:text-(--color-ink)"
             >
-              {confirmingDelete ? t("mcRemoveMonthConfirm") : t("mcRemoveMonth")}
+              + {t("mcAddExpense")}
             </button>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-(--color-rule) px-4 py-3">
+              <div className="col-span-2 space-y-1">
+                <label htmlFor={`${baseId}-savings`} className={`block ${LABEL}`}>
+                  {t("mcSavings")}
+                </label>
+                <div className={BOX}>
+                  <AmountInput id={`${baseId}-savings`} value={plan.savings} onChange={(n) => set({ savings: n })} />
+                  <span className="font-mono text-[10px] text-(--color-ink-soft)">MAD</span>
+                </div>
+                <p className="text-xs text-(--color-ink-soft)">{t("mcSavingsHint")}</p>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <label htmlFor={`${baseId}-objective`} className={`block ${LABEL}`}>
+                  {t("mcSavingsObjective")}
+                </label>
+                <div className={BOX}>
+                  <AmountInput
+                    id={`${baseId}-objective`}
+                    value={plan.objective}
+                    onChange={(n) => set({ objective: n })}
+                  />
+                  <span className="font-mono text-[10px] text-(--color-ink-soft)">MAD</span>
+                </div>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <input
+                  id={`${baseId}-debts-label`}
+                  type="text"
+                  value={plan.debtsLabel}
+                  onChange={(ev) => set({ debtsLabel: ev.target.value })}
+                  placeholder={t("mcMasterDebts")}
+                  aria-label={t("mcDebtsTitleAria")}
+                  className={`block w-full min-w-0 bg-transparent outline-none border-b border-dashed border-(--color-rule) focus:border-(--color-ink) placeholder:text-(--color-ink-soft) ${LABEL}`}
+                />
+                <div className={BOX}>
+                  <AmountInput
+                    id={`${baseId}-debts`}
+                    value={plan.debts}
+                    onChange={(n) => set({ debts: n })}
+                    label={plan.debtsLabel || t("mcMasterDebts")}
+                  />
+                  <span className="font-mono text-[10px] text-(--color-ink-soft)">MAD</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end px-4 pb-3">
+              <button
+                type="button"
+                onClick={() => (confirmingDelete ? onDelete() : setConfirmingDelete(true))}
+                className={`text-xs underline ${
+                  confirmingDelete ? "text-(--color-debit) font-semibold" : "text-(--color-ink-soft) hover:text-(--color-ink)"
+                }`}
+              >
+                {confirmingDelete ? t("mcRemoveMonthConfirm") : t("mcRemoveMonth")}
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </article>
   );
 }
